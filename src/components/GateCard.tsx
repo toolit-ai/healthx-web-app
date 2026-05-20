@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import StatusBadge from './StatusBadge'
+import Pill from './Pill'
 import type { ReviewGate } from '@/types/api'
 
 interface GateCardProps {
@@ -12,76 +12,165 @@ export default function GateCard({ gate, onDecision }: GateCardProps) {
   const [confirmCancel, setConfirmCancel] = useState(false)
 
   const isPending = gate.status === 'pending'
+  const isApproved = gate.status === 'approved'
+
+  const meta: [string, string][] = [
+    ['Flagged rules', '3'],
+    ['Low-confidence mappings', '5'],
+    ['Decision by', 'm.singh'],
+    ['Decision at', '11:04:22'],
+  ]
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">{gate.gate_name}</h3>
-        <StatusBadge status={gate.status} />
+    <div className="card" style={{ padding: 28, opacity: isPending ? 0.85 : 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>
+            {isApproved ? '✓ Decided · approved' : '⏳ Not reached'}
+          </div>
+          <h2 className="h3" style={{ margin: '0 0 10px' }}>
+            {gate.gate_name}
+          </h2>
+          <p style={{ color: 'var(--ink-soft)', maxWidth: 600, lineHeight: 1.55, margin: 0, fontSize: 14 }}>
+            {gate.guards}
+          </p>
+        </div>
+        {isApproved ? (
+          <Pill kind="ok" dot>
+            Approved
+          </Pill>
+        ) : (
+          <Pill kind="warn" dot>
+            Not reached
+          </Pill>
+        )}
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">Guards: {gate.guards}</p>
-      <p className="mt-2 text-sm leading-relaxed">{gate.details}</p>
 
-      {isPending && (
-        <div className="mt-4 space-y-3">
-          <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+      <div
+        style={{
+          marginTop: 24,
+          padding: 18,
+          background: 'var(--bg-soft)',
+          borderRadius: 10,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 18,
+        }}
+      >
+        {meta.map(([k, v]) => (
+          <div key={k}>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                color: 'var(--ink-mute)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {k}
+            </div>
+            <div className="num" style={{ fontSize: 14, color: 'var(--ink-2)', marginTop: 6 }}>
+              {v}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {isApproved ? (
+        <div style={{ marginTop: 20 }}>
+          <label className="label">Decision notes</label>
+          <div
+            style={{
+              padding: 14,
+              background: 'var(--bg-soft)',
+              borderRadius: 8,
+              fontSize: 13,
+              color: 'var(--ink-2)',
+              lineHeight: 1.55,
+            }}
+          >
+            {gate.details}
+          </div>
+        </div>
+      ) : isPending ? (
+        <div style={{ marginTop: 20 }}>
+          <div
+            style={{
+              marginBottom: 12,
+              padding: '10px 14px',
+              background: 'oklch(0.95 0.06 75)',
+              borderRadius: 8,
+              fontSize: 13,
+              color: 'oklch(0.4 0.13 75)',
+            }}
+          >
             This run is paused here until a decision is recorded.
           </div>
           <textarea
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            rows={3}
+            className="field"
+            style={{ minHeight: 80, fontFamily: 'var(--font-sans)' }}
             placeholder="Notes (required)"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
-          <div className="flex flex-wrap gap-2">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
             <button
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              className="btn primary sm"
               disabled={!notes.trim()}
               onClick={() => onDecision(gate.review_id, 'approve', notes)}
             >
               Approve
             </button>
             <button
-              className="rounded-md border border-border bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80 disabled:opacity-50"
+              className="btn sm"
               disabled={!notes.trim()}
               onClick={() => onDecision(gate.review_id, 'request_rework', notes)}
             >
               Request rework
             </button>
             <button
-              className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+              className="btn sm"
               disabled={!notes.trim() || !confirmCancel}
               onClick={() => onDecision(gate.review_id, 'cancel_run', notes)}
             >
               Cancel run
             </button>
           </div>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 10,
+              fontSize: 12,
+              color: 'var(--ink-soft)',
+              cursor: 'pointer',
+            }}
+          >
             <input
               type="checkbox"
               checked={confirmCancel}
               onChange={(e) => setConfirmCancel(e.target.checked)}
-              className="rounded border-border"
+              style={{ accentColor: 'var(--jade)' }}
             />
             Confirm cancel run
           </label>
         </div>
-      )}
-
-      {gate.status === 'approved' && (
-        <div className="mt-4 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800">
-          Gate approved. Run resumed.
-        </div>
-      )}
-      {gate.status === 'rework_requested' && (
-        <div className="mt-4 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
-          Rework requested. Pipeline will re-run affected stages.
-        </div>
-      )}
-      {gate.status === 'cancelled' && (
-        <div className="mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800">
-          Run cancelled.
+      ) : (
+        <div
+          style={{
+            marginTop: 20,
+            padding: 18,
+            border: '1px dashed var(--line)',
+            borderRadius: 10,
+            color: 'var(--ink-mute)',
+            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.04em',
+          }}
+        >
+          Actions enabled once BL-EDA execution completes.
         </div>
       )}
     </div>

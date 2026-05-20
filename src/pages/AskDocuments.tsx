@@ -1,61 +1,157 @@
 import { useState } from 'react'
 import ChatPanel from '@/components/ChatPanel'
 import StatusBadge from '@/components/StatusBadge'
-import { getCorpusStatus, getRagAnswer } from '@/api/mock'
+import { getCorpusStatus, getRagAnswer, RAG_TRANSCRIPT } from '@/api/mock'
 import type { ChatMessage } from '@/types/api'
 
 const SUGGESTED_QUESTIONS = [
-  'What is the overtime rate according to the CBA?',
-  'How is shift differential calculated?',
-  'What is the on-call pay policy?',
-  'Explain the meal premium rule.',
+  'Stacking cap across all CBAs?',
+  'Callback minimum hours ROC vs non-ROC?',
+  'VTO counted toward OT threshold?',
+  'WEO eligibility window rules?',
+  'Holiday pay premium rate?',
 ]
+
+const RECENT_QUERIES = [
+  'Consecutive day premium — allied health exclusion?',
+  'Preceptor pay credential expiration policy',
+  'Break exception manager attestation requirement',
+  'Premium labor code increase YoY correlation',
+]
+
+function mapRagToMessages(): ChatMessage[] {
+  return RAG_TRANSCRIPT.map((m) => ({
+    role: m.role as 'user' | 'assistant',
+    content: m.text,
+    confidence: m.confidence,
+    citations: m.citations?.map((c) => ({
+      chunk_id: '',
+      filename: c.doc,
+      page: c.page,
+      section: c.section,
+      excerpt: '',
+    })),
+    limitations: m.limitations ? [m.limitations] : undefined,
+  }))
+}
 
 export default function AskDocuments() {
   const corpus = getCorpusStatus()
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(mapRagToMessages())
 
   function handleSend(text: string) {
     setMessages((prev) => [...prev, { role: 'user', content: text }])
     const answer = getRagAnswer(text)
     setTimeout(() => {
-      setMessages((prev) => [...prev, {
-        role: 'assistant',
-        content: answer.answer,
-        confidence: answer.confidence,
-        citations: answer.citations,
-        limitations: answer.limitations,
-        answerable: answer.answerable,
-      }])
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: answer.answer,
+          confidence: answer.confidence,
+          citations: answer.citations,
+          limitations: answer.limitations,
+          answerable: answer.answerable,
+        },
+      ])
     }, 600)
   }
 
   return (
-    <div className="space-y-4 h-[calc(100vh-8rem)]">
-      <div>
-        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Ask Documents</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Document RAG</h1>
-      </div>
-
-      <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
-        <span className="text-xs font-medium">Corpus:</span>
-        <StatusBadge status={corpus.status} />
-        <span className="text-xs text-muted-foreground">{corpus.indexed_count}/{corpus.total_count} indexed</span>
-        <span className="text-xs text-muted-foreground ml-auto">{corpus.readiness_pct}% ready</span>
-      </div>
-
-      {messages.length === 0 && (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {SUGGESTED_QUESTIONS.map((q) => (
-            <button key={q} onClick={() => handleSend(q)} className="rounded-lg border border-border bg-card p-3 text-left text-sm hover:bg-muted/50 transition-colors">
-              {q}
-            </button>
-          ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, height: 'calc(100vh - 8rem)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, flex: 1, minHeight: 0 }}>
+        {/* Left: Chat */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+          {/* Corpus status banner */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '12px 18px',
+              background: 'var(--jade-soft)',
+              borderBottom: '1px solid var(--line-soft)',
+            }}
+          >
+            <StatusBadge status="ready" />
+            <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+              Corpus ready · {corpus.indexed_count}/{corpus.total_count} documents indexed
+            </span>
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ChatPanel
+              messages={messages}
+              onSend={handleSend}
+              placeholder="Ask about policy, CBA, or pay practices…"
+            />
+          </div>
         </div>
-      )}
 
-      <div className="flex-1 min-h-0 rounded-lg border border-border bg-card overflow-hidden">
-        <ChatPanel messages={messages} onSend={handleSend} placeholder="Ask about policy, CBA, or pay practices..." />
+        {/* Right sidebar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
+          {/* Scope card */}
+          <div className="card">
+            <div className="eyebrow" style={{ marginBottom: 10 }}>
+              Scope
+            </div>
+            <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--ink-2)', margin: '0 0 14px' }}>
+              Answers are grounded in 14 uploaded documents (CBAs, policies, addendums). You can filter
+              by document type or specific file.
+            </p>
+            <button className="btn" style={{ width: '100%' }}>
+              Filter documents…
+            </button>
+          </div>
+
+          {/* Suggested questions */}
+          <div className="card">
+            <div className="eyebrow" style={{ marginBottom: 12 }}>
+              Suggested questions
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {SUGGESTED_QUESTIONS.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => handleSend(q)}
+                  className="btn ghost"
+                  style={{
+                    justifyContent: 'flex-start',
+                    textAlign: 'left',
+                    fontSize: 13,
+                    padding: '8px 10px',
+                    whiteSpace: 'normal',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent queries */}
+          <div className="card">
+            <div className="eyebrow" style={{ marginBottom: 12 }}>
+              Recent queries
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {RECENT_QUERIES.map((q) => (
+                <div
+                  key={q}
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--ink-2)',
+                    paddingBottom: 10,
+                    borderBottom: '1px solid var(--line-soft)',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {q}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

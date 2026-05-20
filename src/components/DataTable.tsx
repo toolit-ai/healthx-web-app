@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { cn } from '@/lib/utils'
 
 interface ColumnDef {
   key: string
@@ -39,30 +38,35 @@ export default function DataTable({ columns, data, hideIndex = false, rowClassNa
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted">
+    <div style={{ overflowX: 'auto' }}>
+      <table className="hx">
+        <thead>
           <tr>
-            {!hideIndex && <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">#</th>}
+            {!hideIndex && <th>#</th>}
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="cursor-pointer px-3 py-2 text-left text-xs font-semibold text-muted-foreground hover:text-foreground"
-                style={col.width ? { width: col.width } : undefined}
+                style={col.width ? { width: col.width, cursor: 'pointer' } : { cursor: 'pointer' }}
                 onClick={() => handleSort(col.key)}
               >
                 {col.header}
-                {sortColumn === col.key && <span className="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                {sortColumn === col.key && (
+                  <span style={{ marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                )}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody>
           {sortedData.map((row, i) => (
-            <tr key={i} className={cn('hover:bg-muted/50', rowClassName)}>
-              {!hideIndex && <td className="px-3 py-2 text-xs text-muted-foreground">{i + 1}</td>}
+            <tr key={i} className={rowClassName}>
+              {!hideIndex && (
+                <td className="num" style={{ color: 'var(--ink-mute)', fontSize: 11 }}>
+                  {i + 1}
+                </td>
+              )}
               {columns.map((col) => (
-                <td key={col.key} className="px-3 py-2">
+                <td key={col.key} className={typeof row[col.key] === 'number' ? 'num' : ''}>
                   {row[col.key] ?? '-'}
                 </td>
               ))}
@@ -70,7 +74,10 @@ export default function DataTable({ columns, data, hideIndex = false, rowClassNa
           ))}
           {sortedData.length === 0 && (
             <tr>
-              <td colSpan={columns.length + (hideIndex ? 0 : 1)} className="px-3 py-6 text-center text-sm text-muted-foreground">
+              <td
+                colSpan={columns.length + (hideIndex ? 0 : 1)}
+                style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--ink-mute)' }}
+              >
                 No data
               </td>
             </tr>

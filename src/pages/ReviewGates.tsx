@@ -11,7 +11,15 @@ export default function ReviewGates() {
     setGates((prev) =>
       prev.map((g) =>
         g.review_id === reviewId
-          ? { ...g, status: decision === 'approve' ? 'approved' : decision === 'request_rework' ? 'rework_requested' : 'cancelled' }
+          ? {
+              ...g,
+              status:
+                decision === 'approve'
+                  ? 'approved'
+                  : decision === 'request_rework'
+                    ? 'rework_requested'
+                    : 'cancelled',
+            }
           : g
       )
     )
@@ -21,8 +29,11 @@ export default function ReviewGates() {
 
   if (allNotReached) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Review Gates</h1>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 920 }}>
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>Review Gates</div>
+          <h2 className="h3" style={{ margin: 0 }}>Human-in-the-loop checkpoints</h2>
+        </div>
         <NotReadyState
           reason="No review gates yet."
           prerequisite="Gates appear when the pipeline reaches a checkpoint (BL mapping / report QA)."
@@ -32,19 +43,18 @@ export default function ReviewGates() {
   }
 
   return (
-    <div className="space-y-4">
-      <section>
-        <h1 className="text-2xl font-semibold tracking-tight">Review Gates</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 920 }}>
+      <div>
+        <div className="eyebrow" style={{ marginBottom: 6 }}>Review Gates</div>
+        <h2 className="h3" style={{ margin: 0 }}>Human-in-the-loop checkpoints</h2>
+        <p style={{ color: 'var(--ink-soft)', fontSize: 14, margin: '8px 0 0', lineHeight: 1.55 }}>
           Runs pause indefinitely at a pending gate — there is no auto-timeout. Notes are recorded as the audit trail.
         </p>
-      </section>
-
-      <div className="space-y-4">
-        {gates.map((gate) => (
-          <GateCard key={gate.review_id} gate={gate} onDecision={handleDecision} />
-        ))}
       </div>
+
+      {gates.map((gate) => (
+        <GateCard key={gate.review_id} gate={gate} onDecision={handleDecision} />
+      ))}
     </div>
   )
 }

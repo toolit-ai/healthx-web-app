@@ -1,64 +1,99 @@
 import { useState } from 'react'
 import StageTracker from '@/components/StageTracker'
+import StatusBadge from '@/components/StatusBadge'
 import { getProgressSnapshot, getStatusAnswer } from '@/api/mock'
 
 const BUTTONS = [
-  { key: 'completed', label: 'What completed?' },
-  { key: 'running', label: "What's running now?" },
-  { key: 'next', label: "What's next?" },
-  { key: 'blockers', label: 'Any blockers?' },
-  { key: 'artifacts', label: 'What artifacts are ready?' },
+  { key: 'running', label: "What's running" },
+  { key: 'completed', label: 'What completed' },
+  { key: 'blockers', label: 'Any blockers' },
+  { key: 'artifacts', label: 'Artifacts ready' },
+  { key: 'next', label: "What's next" },
 ] as const
 
 export default function StatusChat() {
   const progress = getProgressSnapshot()
-  const [answers, setAnswers] = useState<Array<{ question: string; answer: string }>>([])
+  const [activeAnswer, setActiveAnswer] = useState<{ question: string; answer: string } | null>(null)
 
   function ask(type: string) {
     const result = getStatusAnswer(type)
-    setAnswers((prev) => [...prev, result])
+    setActiveAnswer(result)
   }
 
+  const runningStages = progress.stages.filter((s) => s.status === 'running')
+  const completedStages = progress.stages.filter((s) => s.status === 'completed')
+
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 24 }}>
+      {/* Left: Stage tracker */}
       <div>
-        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Status Chat</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Pipeline Status</h1>
+        <StageTracker stages={progress.stages} />
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium">Run ID</p>
-          <p className="font-mono text-xs text-muted-foreground">{progress.run_id}</p>
+      {/* Right: Ask + Answer */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Ask card */}
+        <div className="card">
+          <div className="eyebrow" style={{ marginBottom: 14 }}>
+            Ask about status
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {BUTTONS.map((b) => (
+              <button
+                key={b.key}
+                onClick={() => ask(b.key)}
+                className="btn ghost"
+                style={{ fontSize: 13 }}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="mt-2 flex items-center justify-between">
-          <p className="text-sm font-medium">Overall Progress</p>
-          <p className="text-sm font-semibold">{progress.progress_pct}%</p>
-        </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-status-running" style={{ width: `${progress.progress_pct}%` }} />
-        </div>
-      </div>
 
-      <StageTracker stages={progress.stages} />
-
-      <div className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs font-medium text-muted-foreground mb-2">Ask a status question</p>
-        <div className="flex flex-wrap gap-2">
-          {BUTTONS.map((b) => (
-            <button key={b.key} onClick={() => ask(b.key)} className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
-              {b.label}
-            </button>
-          ))}
-        </div>
-        <div className="mt-3 space-y-2">
-          {answers.map((a, i) => (
-            <div key={i} className="rounded bg-muted p-3 text-sm">
-              <p className="font-medium">{a.question}</p>
-              <p className="mt-1 text-muted-foreground">{a.answer}</p>
+        {/* Answer card */}
+        {activeAnswer && (
+          <div className="card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 className="h3" style={{ fontSize: 18, margin: 0 }}>
+                {activeAnswer.question}
+              </h3>
+              <StatusBadge status="ready" />
             </div>
-          ))}
-        </div>
+            <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)', margin: '0 0 16px' }}>
+              {activeAnswer.answer}
+            </p>
+            <div style={{ borderTop: '1px solid var(--line-soft)', paddingTop: 12 }}>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>
+                Run metadata
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: 'var(--ink-soft)' }}>Run ID</span>
+                  <span className="num" style={{ color: 'var(--ink-2)' }}>{progress.run_id}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: 'var(--ink-soft)' }}>Overall progress</span>
+                  <span className="num" style={{ color: 'var(--ink-2)' }}>{progress.progress_pct}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: 'var(--ink-soft)' }}>Stages completed</span>
+                  <span className="num" style={{ color: 'var(--ink-2)' }}>{completedStages.length}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: 'var(--ink-soft)' }}>Currently running</span>
+                  <span className="num" style={{ color: 'var(--ink-2)' }}>{runningStages.length}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: 'var(--ink-soft)' }}>Blocked by review</span>
+                  <span style={{ color: progress.blocked_by_review ? 'var(--crimson)' : 'var(--jade-deep)' }}>
+                    {progress.blocked_by_review ? 'Yes' : 'No'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
