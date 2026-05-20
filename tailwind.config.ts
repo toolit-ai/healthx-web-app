@@ -52,6 +52,12 @@ export default {
           blocked: 'hsl(var(--healthx-status-blocked))',
           partial: 'hsl(var(--healthx-status-partial))',
           waiting: 'hsl(var(--healthx-status-waiting))',
+          reindexing: 'hsl(var(--healthx-status-reindexing))',
+        },
+        conflict: {
+          bg: 'hsl(var(--healthx-conflict-bg))',
+          text: 'hsl(var(--healthx-conflict-text))',
+          border: 'hsl(var(--healthx-conflict-border))',
         },
       },
       borderRadius: {

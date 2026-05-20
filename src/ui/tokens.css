@@ -36,6 +36,11 @@
   --healthx-status-blocked: 25 95% 53%;
   --healthx-status-partial: 45 93% 47%;
   --healthx-status-waiting: 25 95% 53%;
+  --healthx-status-reindexing: 217 91% 60%;
+
+  --healthx-conflict-bg: 0 100% 96%;
+  --healthx-conflict-text: 0 84% 42%;
+  --healthx-conflict-border: 0 82% 85%;
 
   --healthx-radius: 0.5rem;
 }
@@ -58,4 +63,8 @@
   --healthx-secondary-foreground: 213 27% 96%;
   --healthx-primary: 217 91% 60%;
   --healthx-primary-foreground: 220 25% 8%;
+
+  --healthx-conflict-bg: 0 60% 16%;
+  --healthx-conflict-text: 0 82% 82%;
+  --healthx-conflict-border: 0 70% 30%;
 }

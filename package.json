@@ -1,7 +1,7 @@
 {
   "name": "healthx-web-app",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "description": "HealthX — browser-native AAA (Autonomous Agentic Arc) for healthcare workforce & pay-practice analytics.",
@@ -22,6 +22,7 @@
     "clsx": "^2.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-router-dom": "^7.15.1",
     "tailwind-merge": "^2.6.0",
     "zod": "^3.24.1"
   },
