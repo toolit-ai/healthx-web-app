@@ -20,11 +20,11 @@ import type {
 } from '@/types/api'
 
 export const PIPELINE_STAGES = [
-  { id: 'setup', label: 'Run Setup', icon: '01', note: 'Inputs & weights' },
+  { id: 'setup', label: 'Run Setup', icon: '01', note: 'Inputs & sources' },
   { id: 'data', label: 'Data & DQ', icon: '02', note: 'Profile + quality' },
   { id: 'docs', label: 'Documents & Rules', icon: '03', note: 'Extract business logic' },
   { id: 'gates', label: 'Review Gates', icon: '04', note: 'Human-in-the-loop' },
-  { id: 'findings', label: 'BL-EDA Findings', icon: '05', note: 'Materiality-ranked' },
+  { id: 'findings', label: 'BL-EDA Findings', icon: '05', note: 'By severity' },
   { id: 'ask', label: 'Ask Documents', icon: '06', note: 'Document RAG' },
   { id: 'reports', label: 'Reports', icon: '07', note: 'Deep-dive + Exec' },
   { id: 'status', label: 'Status Chat', icon: '08', note: 'Run telemetry' },
@@ -78,7 +78,6 @@ export const BL_EDA_RUNNING = [
 export const FINDINGS = [
   {
     id: 'F-0142',
-    materiality: 94,
     severity: 'critical',
     practice: 'Overtime',
     title: 'VTO/VTU/MTO/MTU counted as worked hours toward OT threshold at St. Vincent',
@@ -90,7 +89,6 @@ export const FINDINGS = [
   },
   {
     id: 'F-0118',
-    materiality: 88,
     severity: 'critical',
     practice: 'Shift Differentials & Stacking',
     title: 'SD3 Night + WDF Weekend stacking exceeds CBA cap in 312 weeks (Toledo CBA §4.7)',
@@ -102,7 +100,6 @@ export const FINDINGS = [
   },
   {
     id: 'F-0096',
-    materiality: 76,
     severity: 'high',
     practice: 'On Call & Callback',
     title: 'ROC vs non-ROC callback minimum differs by 1.5 hours with no policy basis',
@@ -114,7 +111,6 @@ export const FINDINGS = [
   },
   {
     id: 'F-0081',
-    materiality: 71,
     severity: 'high',
     practice: 'Consecutive Days',
     title: '7+ consecutive day premium not consistently applied across allied health roles',
@@ -126,7 +122,6 @@ export const FINDINGS = [
   },
   {
     id: 'F-0073',
-    materiality: 64,
     severity: 'high',
     practice: 'Weekend Option',
     title: 'WEO eligibility window varies — 4-week vs 8-week qualification across markets',
@@ -138,7 +133,6 @@ export const FINDINGS = [
   },
   {
     id: 'F-0061',
-    materiality: 52,
     severity: 'medium',
     practice: 'Premium Labor',
     title: 'Premium labor codes increased 31% YoY in Q2 — staffing gap correlation strong',
@@ -150,7 +144,6 @@ export const FINDINGS = [
   },
   {
     id: 'F-0048',
-    materiality: 43,
     severity: 'medium',
     practice: 'Break Exceptions',
     title: 'Missed-break premium auto-paid without manager attestation in 22% of shifts',
@@ -162,7 +155,6 @@ export const FINDINGS = [
   },
   {
     id: 'F-0031',
-    materiality: 28,
     severity: 'low',
     practice: 'Preceptor Pay',
     title: 'Preceptor pay code applied past credential expiration date in 18 cases',
@@ -170,7 +162,7 @@ export const FINDINGS = [
     hours: '—',
     dollars: '$3.2K',
     rules: ['R-0091'],
-    discussion: 'Low-materiality but easy fix — flag in payroll review.',
+    discussion: 'Low impact but easy fix — flag in payroll review.',
   },
 ]
 
@@ -627,8 +619,8 @@ export function getStatusAnswer(questionType: string): { question: string; answe
   const answers: Record<string, string> = {
     running: 'BL-EDA execution is currently running. The validation_and_bl_eda_graph is at node `bl_eda_subgraph`. 5 of 10 pay practices have completed; 2 are concurrently executing (Weekend Option, On Call & Callback). Send() fan-out is at the rate-limited concurrency cap.',
     completed: '16 stages completed from initialize_run through dq_gate. Notable: Document quality gate passed with 13/14 extracted and 1 OCR-recovered. Both review gates (BL Mapping at 11:04, DQ at 11:05) were approved with notes.',
-    blockers: 'No blockers. Zero failed nodes. Zero paused review gates. Two advisory DQ issues remain open but do not block BL-EDA per the run\'s materiality weights.',
-    artifacts: '5 artifacts ready, 4 in progress. Per-practice evidence parquets for Overtime, Stacking, Consecutive Days, Callback, and Materiality breakdown CSV are persisted. Deep-dive report is rendering. Executive report is queued behind it.',
+    blockers: 'No blockers. Zero failed nodes. Zero paused review gates. Two advisory DQ issues remain open but do not block BL-EDA.',
+    artifacts: '4 artifacts ready, 4 in progress. Per-practice evidence parquets for Overtime, Stacking, Consecutive Days, and Callback are persisted. Deep-dive report is rendering. Executive report is queued behind it.',
     next: 'Remaining graph path: bl_eda_evidence_aggregation → bl_eda_persistence → bl_eda_summary → bl_report_generation → deep_dive_report_trigger → executive_report_trigger → export_packaging → complete_run.',
   }
   const labels: Record<string, string> = {

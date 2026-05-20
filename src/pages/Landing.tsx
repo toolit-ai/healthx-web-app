@@ -225,11 +225,11 @@ function Hero() {
 
 function PipelineSection() {
   const stages = [
-    { id: 'setup', label: 'Run Setup', icon: '01', note: 'Inputs & weights' },
+    { id: 'setup', label: 'Run Setup', icon: '01', note: 'Inputs & sources' },
     { id: 'data', label: 'Data & DQ', icon: '02', note: 'Profile + quality' },
     { id: 'docs', label: 'Documents & Rules', icon: '03', note: 'Extract business logic' },
     { id: 'gates', label: 'Review Gates', icon: '04', note: 'Human-in-the-loop' },
-    { id: 'findings', label: 'BL-EDA Findings', icon: '05', note: 'Materiality-ranked' },
+    { id: 'findings', label: 'BL-EDA Findings', icon: '05', note: 'By severity' },
     { id: 'ask', label: 'Ask Documents', icon: '06', note: 'Document RAG' },
     { id: 'reports', label: 'Reports', icon: '07', note: 'Deep-dive + Exec' },
     { id: 'status', label: 'Status Chat', icon: '08', note: 'Run telemetry' },
@@ -530,11 +530,10 @@ function EvidenceSection() {
               Findings link back to rule IDs, cited document sections, and the structured-data rows
               that triggered them. Auditable from the executive memo down to the punch-level row.
             </p>
-            <div style={{ marginTop: 32, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
+            <div style={{ marginTop: 32, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
               {[
                 ['Citation coverage', '100%'],
                 ['Source-row trace', 'punch-level'],
-                ['Materiality dims', '7 weighted'],
                 ['Discoverable practices', 'runtime'],
               ].map(([k, v]) => (
                 <div key={k}>

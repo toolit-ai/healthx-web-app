@@ -7,7 +7,6 @@ const EVIDENCE_ARTIFACTS = [
   { name: 'Stacking_evidence.parquet', size: '18 MB', kind: 'Parquet', status: 'Ready' },
   { name: 'ConsecutiveDays_evidence.parquet', size: '12 MB', kind: 'Parquet', status: 'Ready' },
   { name: 'Callback_evidence.parquet', size: '9 MB', kind: 'Parquet', status: 'Ready' },
-  { name: 'Materiality_breakdown.csv', size: '3 MB', kind: 'CSV', status: 'Ready' },
 ]
 
 const CHECKLIST = [

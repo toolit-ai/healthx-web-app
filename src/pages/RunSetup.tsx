@@ -17,38 +17,15 @@ const DOC_FILES = [
   '+ 11 more',
 ]
 
-const WEIGHT_LABELS: [string, string][] = [
-  ['dollar', 'Dollar impact'],
-  ['hours', 'Affected hours'],
-  ['cba', 'CBA / legal risk'],
-  ['employee', 'Affected employees'],
-  ['conflict', 'Policy conflict severity'],
-  ['market', 'Market spread'],
-  ['exec', 'Executive relevance'],
-]
-
 export default function RunSetup() {
   const navigate = useNavigate()
   const [dataPath, setDataPath] = useState('/engagements/bsmh/data/raw')
   const [docsPath, setDocsPath] = useState('/engagements/bsmh/documents')
-  const [weights, setWeights] = useState({
-    dollar: 30,
-    hours: 15,
-    cba: 20,
-    employee: 10,
-    conflict: 10,
-    market: 10,
-    exec: 5,
-  })
-
-  const sum = Object.values(weights).reduce((a, b) => a + b, 0)
-  const weightOk = sum === 100
 
   function handleStart() {
     createRun({
       data_input_path: dataPath,
       documents_input_path: docsPath,
-      materiality_weights: weights,
     })
     navigate('/data-dq')
   }
@@ -79,55 +56,6 @@ export default function RunSetup() {
           <input className="field" value={docsPath} onChange={(e) => setDocsPath(e.target.value)} />
           <PathPreview items={DOC_FILES} count={14} />
         </div>
-
-        <div className="card" style={{ padding: 28, marginTop: 24 }}>
-          <div className="eyebrow" style={{ marginBottom: 18 }}>
-            <span className="dot" />
-            Materiality Weights
-          </div>
-          <h2 className="h3" style={{ margin: '0 0 8px' }}>
-            How should findings be ranked?
-          </h2>
-          <p style={{ color: 'var(--ink-soft)', fontSize: 14, margin: '0 0 24px' }}>
-            Weights must sum to 100%. Used to rank BL-EDA findings end-to-end.
-          </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-            {WEIGHT_LABELS.map(([key, label]) => (
-              <WeightSlider
-                key={key}
-                label={label}
-                value={weights[key as keyof typeof weights]}
-                onChange={(v) => setWeights({ ...weights, [key]: v })}
-              />
-            ))}
-          </div>
-
-          <div
-            style={{
-              marginTop: 24,
-              padding: '14px 18px',
-              background: weightOk ? 'var(--jade-soft)' : 'oklch(0.95 0.06 75)',
-              color: weightOk ? 'var(--jade-deep)' : 'oklch(0.45 0.13 75)',
-              borderRadius: 10,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              letterSpacing: '0.04em',
-            }}
-          >
-            <span>
-              {weightOk
-                ? '✓ Weights balanced — ready to start'
-                : `△ Sum is ${sum}% — adjust to 100%`}
-            </span>
-            <span className="num" style={{ fontSize: 14 }}>
-              {sum}%
-            </span>
-          </div>
-        </div>
       </div>
 
       <div>
@@ -141,10 +69,8 @@ export default function RunSetup() {
           <SummaryRow k="CBAs" v="11 anticipated" />
           <SummaryRow k="Temporal scope" v="14 months · trend ON" />
           <SummaryRow k="Estimated runtime" v="~12 min" />
-          <SummaryRow k="Weights" v={`${sum}% / 100%`} flag={!weightOk} />
           <button
             className="btn primary"
-            disabled={!weightOk}
             style={{ width: '100%', marginTop: 18, padding: '12px' }}
             onClick={handleStart}
           >
@@ -225,38 +151,7 @@ function PathPreview({ items, count }: { items: string[]; count: number }) {
   )
 }
 
-function WeightSlider({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: number
-  onChange: (v: number) => void
-}) {
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <label className="label" style={{ margin: 0 }}>
-          {label}
-        </label>
-        <span className="num" style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 500 }}>
-          {value}%
-        </span>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={50}
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value))}
-        style={{ width: '100%', accentColor: 'var(--jade)' }}
-      />
-    </div>
-  )
-}
-
-function SummaryRow({ k, v, flag }: { k: string; v: string; flag?: boolean }) {
+function SummaryRow({ k, v }: { k: string; v: string }) {
   return (
     <div
       style={{
@@ -268,15 +163,7 @@ function SummaryRow({ k, v, flag }: { k: string; v: string; flag?: boolean }) {
       }}
     >
       <span style={{ color: 'var(--ink-soft)' }}>{k}</span>
-      <span
-        style={{
-          color: flag ? 'oklch(0.45 0.13 75)' : 'var(--ink)',
-          fontWeight: 500,
-          fontFamily: k === 'Weights' ? 'var(--font-mono)' : 'inherit',
-        }}
-      >
-        {v}
-      </span>
+      <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{v}</span>
     </div>
   )
 }

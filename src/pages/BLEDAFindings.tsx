@@ -9,7 +9,6 @@ const TABS = ['Findings', 'Scenarios'] as const
 
 interface MockFinding {
   id: string
-  materiality: number
   severity: string
   practice: string
   title: string
@@ -403,34 +402,11 @@ function FindingRow({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '60px 1fr auto',
+            gridTemplateColumns: '1fr auto',
             gap: 16,
             alignItems: 'flex-start',
           }}
         >
-          <div>
-            <div
-              className="num"
-              style={{
-                fontSize: 24,
-                fontWeight: 500,
-                letterSpacing: '-0.01em',
-                color: 'var(--ink)',
-              }}
-            >
-              {f.materiality}
-            </div>
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 10,
-                color: 'var(--ink-mute)',
-                letterSpacing: '0.06em',
-              }}
-            >
-              MATERIALITY
-            </div>
-          </div>
           <div style={{ minWidth: 0 }}>
             <div
               style={{

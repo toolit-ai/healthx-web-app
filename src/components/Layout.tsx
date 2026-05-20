@@ -3,11 +3,11 @@ import Logo from './Logo'
 import Pill from './Pill'
 
 const PIPELINE_STAGES = [
-  { id: 'setup', label: 'Run Setup', icon: '01', route: '/run-setup', note: 'Inputs & weights' },
+  { id: 'setup', label: 'Run Setup', icon: '01', route: '/run-setup', note: 'Inputs & sources' },
   { id: 'data', label: 'Data & DQ', icon: '02', route: '/data-dq', note: 'Profile + quality' },
   { id: 'docs', label: 'Documents & Rules', icon: '03', route: '/documents-rules', note: 'Extract business logic' },
   { id: 'gates', label: 'Review Gates', icon: '04', route: '/review-gates', note: 'Human-in-the-loop' },
-  { id: 'findings', label: 'BL-EDA Findings', icon: '05', route: '/findings', note: 'Materiality-ranked' },
+  { id: 'findings', label: 'BL-EDA Findings', icon: '05', route: '/findings', note: 'By severity' },
   { id: 'ask', label: 'Ask Documents', icon: '06', route: '/ask-documents', note: 'Document RAG' },
   { id: 'reports', label: 'Reports', icon: '07', route: '/reports', note: 'Deep-dive + Exec' },
   { id: 'status', label: 'Status Chat', icon: '08', route: '/status', note: 'Run telemetry' },
