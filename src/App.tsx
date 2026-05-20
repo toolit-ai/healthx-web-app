@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from '@/components/Layout'
 import Landing from '@/pages/Landing'
 import RunSetup from '@/pages/RunSetup'
@@ -12,7 +12,7 @@ import StatusChat from '@/pages/StatusChat'
 
 export default function App() {
   return (
-    <BrowserRouter basename="/healthx-web-app">
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route
@@ -34,6 +34,6 @@ export default function App() {
           }
         />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
