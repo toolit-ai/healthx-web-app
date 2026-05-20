@@ -1,0 +1,13 @@
+{
+  "name": "@healthx/tokens",
+  "version": "0.0.1",
+  "description": "Shared design tokens for healthx-web-app and healthx-platform-kb.",
+  "private": true,
+  "type": "module",
+  "main": "./tokens.css",
+  "exports": {
+    ".": "./tokens.css",
+    "./json": "./tokens.json"
+  },
+  "files": ["tokens.css", "tokens.json"]
+}

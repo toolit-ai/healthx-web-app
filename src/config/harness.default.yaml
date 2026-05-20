@@ -1,0 +1,63 @@
+version: "1.0"
+
+arc:
+  phases: [plan, execute, evaluate, adapt, deploy]
+  adapt_on_eval_fail: true
+  deploy_target: gh-pages
+
+llm:
+  default_provider: anthropic
+  models:
+    extraction: claude-sonnet-4-6
+    reasoning: claude-opus-4-6
+    classification: claude-haiku-4-5-20251001
+    narrative: claude-sonnet-4-6
+  pinned_date: "2026-05-16"
+  rate_limit:
+    tokens_per_minute: 80000
+    requests_per_minute: 50
+
+embeddings:
+  provider: voyage
+  model: voyage-3
+  static_index: /assets/vectors/index.json
+
+parallelism:
+  per_table_eda: 4
+  per_table_dq: 4
+  per_document: 3
+  per_rule_batch: 2
+  rule_batch_size: 20
+
+gates:
+  semantic_mapping_review: { enabled: true, blocking: true }
+  dq_gate_review:          { enabled: true, blocking: true }
+  bl_eda_synthesis:        { enabled: true, blocking: true }
+  report_qa_review:        { enabled: true, blocking: false }
+
+io:
+  picker: fs-access
+  demo_mode: false
+  supported_formats: [csv, xlsx, pdf, docx, md, txt]
+
+reporting:
+  formats: [html]
+  unverified_claims: appendix
+  generate_executive_after: deep-dive
+
+observability:
+  log_level: info
+  emit_events: true
+  redact_hipaa_adjacent: true
+
+nodes:
+  doc_llm_processing:
+    rate_limit:
+      tokens_per_minute: 40000
+    retry_policy:
+      max: 2
+      backoff_ms: 1000
+  bl_eda_synthesis:
+    interrupt_before: true
+  semantic_mapping:
+    batch_size: 20
