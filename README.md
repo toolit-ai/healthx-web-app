@@ -14,7 +14,7 @@ A complete TypeScript rewrite of the Python BSMH Agentic System, running entirel
 
 ## Status
 
-Phase 0 — bootstrap. See [`docs/architecture` on the KB repo](https://toolit-ai.github.io/healthx-platform-kb/) for the full plan and phased roadmap.
+v1.0.0 — Fully functional with 8 routes: Run Setup, Data & DQ, Documents & Rules, Review Gates, BL-EDA Findings, Reports, Status Chat, and Ask Documents.
 
 ## Local development
 
@@ -30,3 +30,10 @@ pnpm preview      # serve the built bundle
 ## Deploy
 
 Push to `main` → GitHub Actions builds and publishes to `https://toolit-ai.github.io/healthx-web-app/`.
+
+## Companion projects
+
+- [healthx-platform-kb](https://toolit-ai.github.io/healthx-platform-kb/) — Architecture, agent catalog, and operational guides
+- [bsmh-agentic-system](https://github.com/SnehashisPattanayak/bsmh-agentic-system) — Python LangGraph execution engine
+
+Maintainer — Snehashis Pattanayak : BSMH Higher Code Initiative
