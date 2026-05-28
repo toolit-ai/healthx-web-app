@@ -19,6 +19,7 @@
     "tokens:sync": "node packages/tokens/sync.mjs"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.100.11",
     "clsx": "^2.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

@@ -27,22 +27,40 @@ export interface DQResult {
 export interface BivariateProfile {
   table_name: string
   measure_correlations: Array<{ col_a: string; col_b: string; assoc_type: string; value: number }>
-  vif_scores: Array<{ column: string; vif: number; risk: string }>
-  dimension_measure_assoc: Array<{ dimension: string; measure: string; stat: number; p_value: number }>
-  dimension_pair_assoc: Array<{ dim_a: string; dim_b: string; cramers_v: number }>
-  high_correlation_pairs: number
-  profiled_at: string
+  vif_scores: Array<{ column: string; vif: number; risk: string }> | Record<string, unknown>
+  dimension_measure_assoc?: Array<{ dimension?: string; measure?: string; col_a?: string; col_b?: string; stat?: number; value?: number; p_value?: number }>
+  dimension_pair_assoc?: Array<{ dim_a: string; dim_b: string; cramers_v: number }>
+  high_correlation_pairs?: number
+  profiled_at?: string
 }
 
 export interface WorkforceContextProfile {
   run_id: string
   tables_analyzed: string[]
-  pay_code_concentration: Array<{ code: string; hours: number; pct: number }>
+  pay_code_concentration: Array<{
+    pay_code: string
+    total_hours?: number
+    total_cost?: number
+    employee_count?: number
+    pct_of_total_hours?: number
+    cumulative_pct_hours?: number
+  }>
   top_codes_80pct_threshold: number
-  temporal_period_stats: Array<{ period: string; total_hours: number; headcount: number }>
+  temporal_period_stats: Array<{
+    period: string
+    total_hours?: number
+    total_cost?: number
+    employee_count?: number
+    period_over_period_hours_pct?: number
+  }>
   time_grain: string
-  segment_health_scores: Array<{ segment: string; dq_score: number }>
-  hour_distribution: Array<{ category: string; hours: number; pct: number }>
+  segment_health_scores: Array<{
+    segment_column: string
+    segment_value: string
+    employee_count: number
+    dq_score: number
+  }>
+  hour_distribution: Record<string, number>
   detected_payroll_table: string
   detected_value_column: string
   detected_hours_column: string
@@ -81,6 +99,30 @@ export interface DocumentRecord {
   document_type: string
   chunk_count: number
   rule_count: number
+}
+
+export interface DocumentDetail {
+  document_id: string
+  run_id: string
+  filename: string
+  document_type: string
+  market: string | null
+  cba_subtype: string | null
+  pay_practice_hint: string | null
+  page_count: number
+  chunk_count: number
+  table_count: number
+  rule_count: number
+  status: string
+  ocr_used: boolean
+  llm_vision_used: boolean
+  processing_errors: string[]
+}
+
+export interface DocumentSummaryResponse {
+  prose_overview: string | null
+  key_points: string[]
+  notable_statements: string[]
 }
 
 export interface BLEDAFinding {
@@ -139,11 +181,12 @@ export interface ReviewGate {
 }
 
 export interface StageProgress {
-  stage_id: string
-  name: string
+  stage_id?: string
+  name?: string
+  stage_name?: string
   status: 'not_started' | 'running' | 'completed' | 'failed' | 'blocked'
-  progress_pct: number
-  sub_stages?: StageProgress[]
+  progress_pct?: number
+  sub_stages?: Array<Partial<StageProgress>>
 }
 
 export interface ProgressSnapshot {
@@ -221,25 +264,31 @@ export interface RunSummary {
   created_at: string
 }
 
+export interface ColumnProfile {
+  name: string
+  dtype: string
+  null_pct: number
+  unique_count: number
+  var_role?: string
+  numeric_min?: number
+  numeric_max?: number
+  numeric_mean?: number
+  numeric_std?: number
+  p25?: number
+  p50?: number
+  p75?: number
+  skew?: number
+  iqr_outlier_pct?: number
+  top_k_freq?: Record<string, number>
+}
+
 export interface TableProfile {
   table_name: string
   row_count: number
   column_count: number
-  longitudinal: boolean
-  periods: number
-  column_profiles: Array<{
-    column: string
-    type: string
-    null_rate: number
-    unique_count: number
-    top_values?: Array<{ value: string; count: number }>
-    mean?: number
-    std?: number
-    min?: number
-    max?: number
-    skewness?: number
-    iqr_outlier_rate?: number
-  }>
+  is_longitudinal: boolean
+  n_periods: number | null
+  columns: ColumnProfile[]
 }
 
 export interface CatalogEntry {
@@ -261,14 +310,65 @@ export interface RelationshipEntry {
 }
 
 export interface KeyFactor {
-  type: string
+  factor_id: string
+  factor_type: string
+  table_name: string
   measure: string
-  dimension: string
-  effect: string
-  tier: number
+  dimension: string | null
+  effect_size: number
+  direction: string
+  tier: string
+  pay_practice: string
 }
 
-export interface KeyVariableGroup {
-  group: string
-  variables: Array<{ name: string; rank: number; importance: number }>
+export interface KeyVariables {
+  run_id?: string
+  measures: string[]
+  dimensions: string[]
+  time_columns: string[]
+  entity_keys: string[]
+}
+
+export interface PayProvision {
+  provision_id: string
+  source_filename: string
+  document_type: string
+  pay_metric: string
+  market: string | null
+  facility: string | null
+  workforce_type: string | null
+  policy_authority: string
+  provision_status: string
+  provision_text: string
+  flsa_concern: boolean
+  flsa_concern_note: string | null
+  rate_multiplier: number | null
+  threshold_notes: string | null
+  citation_text: string | null
+  confidence: number
+}
+
+export interface StackingRule {
+  stacking_rule_id: string
+  pay_metric: string
+  premium_a: string
+  premium_b: string
+  relationship: string
+  condition_text: string | null
+  source_filename: string
+  document_type: string
+  market: string | null
+  workforce_type: string | null
+  citation_text: string | null
+}
+
+export interface VariationObservation {
+  observation_id: string
+  pay_metric: string
+  observation_type: string
+  observation_text: string
+  affected_markets: string[]
+  affected_workforce_types: string[]
+  severity: string
+  is_llm_generated: boolean
 }

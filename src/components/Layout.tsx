@@ -1,6 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import Logo from './Logo'
 import Pill from './Pill'
+import { getRunStatus } from '@/api/client'
+import { useActiveRun } from '@/hooks/useActiveRun'
 
 const PIPELINE_STAGES = [
   { id: 'setup', label: 'Run Setup', icon: '01', route: '/run-setup', note: 'Inputs & sources' },
@@ -50,6 +53,7 @@ export default function Layout({ children }: LayoutProps) {
 }
 
 function SideRail({ currentRoute }: { currentRoute: string }) {
+  const { runId } = useActiveRun()
   return (
     <aside
       style={{
@@ -70,10 +74,20 @@ function SideRail({ currentRoute }: { currentRoute: string }) {
         </Link>
         <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Pill kind="run" dot>
-            RUN ACTIVE
+            {runId ? 'RUN ACTIVE' : 'NO RUN'}
           </Pill>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-mute)' }}>
-            R-2026-0312
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              color: 'var(--ink-mute)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: 160,
+            }}
+            title={runId ?? ''}
+          >
+            {runId ? truncateRunId(runId) : '—'}
           </span>
         </div>
         <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
@@ -156,6 +170,11 @@ function SideRail({ currentRoute }: { currentRoute: string }) {
   )
 }
 
+function truncateRunId(id: string): string {
+  if (id.length <= 22) return id
+  return `${id.slice(0, 10)}…${id.slice(-8)}`
+}
+
 function StageDot({ id }: { id: string }) {
   const k = STAGE_STATUS[id] || 'idle'
   const color = k === 'ok' ? 'var(--jade)' : k === 'run' ? 'var(--indigo)' : 'var(--ink-mute)'
@@ -174,6 +193,18 @@ function StageDot({ id }: { id: string }) {
 
 function TopBar({ currentRoute }: { currentRoute: string }) {
   const meta = PIPELINE_STAGES.find((s) => s.route === currentRoute)
+  const { runId } = useActiveRun()
+  const statusQ = useQuery({
+    queryKey: ['run-status', runId],
+    queryFn: () => getRunStatus(runId!),
+    enabled: !!runId,
+    refetchInterval: 5000,
+  })
+  const statusLabel = !runId
+    ? 'NO ACTIVE RUN'
+    : statusQ.isLoading
+      ? 'Loading…'
+      : statusQ.data?.current_stage ?? statusQ.data?.status ?? '—'
   return (
     <div
       style={{
@@ -204,13 +235,13 @@ function TopBar({ currentRoute }: { currentRoute: string }) {
             whiteSpace: 'nowrap',
           }}
         >
-          <span>Run R-2026-0312</span>
+          <span>Run {runId ? truncateRunId(runId) : '—'}</span>
           <span style={{ color: 'var(--line)' }}>/</span>
           <span>
             Stage {meta?.icon} of 08
           </span>
           <span style={{ color: 'var(--line)' }}>/</span>
-          <span style={{ color: 'var(--jade-deep)' }}>BL-EDA executing</span>
+          <span style={{ color: 'var(--jade-deep)' }}>{statusLabel}</span>
         </div>
         <h1
           style={{

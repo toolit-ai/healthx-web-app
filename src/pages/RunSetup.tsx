@@ -1,34 +1,49 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createRun } from '@/api/mock'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import {
+  ApiError,
+  createRun,
+  previewPaths,
+  type PathPreviewSide,
+} from '@/api/client'
+import { useActiveRun } from '@/hooks/useActiveRun'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
-const DATA_FILES = [
-  'timesheet_v3.parquet (412MB)',
-  'schedule_v2.parquet (88MB)',
-  'payroll_v3.parquet (240MB)',
-  'employee_v2.csv (12MB)',
-  'absence_codes_lkp.csv (4KB)',
-]
-
-const DOC_FILES = [
-  'Toledo_CBA_2024-2027.pdf',
-  'Lorain_CBA_2023-2026.pdf',
-  'Springfield_CBA_2024-2027.pdf',
-  '+ 11 more',
-]
+const DEFAULT_DATA_PATH =
+  '/Users/rishabharya/Desktop/bsmh-workspace/bsmh-agentic-system/demo_upload/set_a_clean'
+const DEFAULT_DOCS_PATH =
+  '/Users/rishabharya/Desktop/bsmh-workspace/bsmh-agentic-system/demo_upload/docs'
 
 export default function RunSetup() {
   const navigate = useNavigate()
-  const [dataPath, setDataPath] = useState('/engagements/bsmh/data/raw')
-  const [docsPath, setDocsPath] = useState('/engagements/bsmh/documents')
+  const { setRunId } = useActiveRun()
+  const [dataPath, setDataPath] = useState(DEFAULT_DATA_PATH)
+  const [docsPath, setDocsPath] = useState(DEFAULT_DOCS_PATH)
 
-  function handleStart() {
-    createRun({
-      data_input_path: dataPath,
-      documents_input_path: docsPath,
-    })
-    navigate('/data-dq')
-  }
+  const debouncedData = useDebouncedValue(dataPath, 300)
+  const debouncedDocs = useDebouncedValue(docsPath, 300)
+
+  const preview = useQuery({
+    queryKey: ['paths-preview', debouncedData, debouncedDocs],
+    queryFn: () => previewPaths({ data_path: debouncedData, docs_path: debouncedDocs }),
+    enabled: !!debouncedData && !!debouncedDocs,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      createRun({ data_input_path: dataPath, documents_input_path: docsPath }),
+    onSuccess: (run) => {
+      setRunId(run.run_id)
+      navigate('/data-dq')
+    },
+  })
+
+  const canStart =
+    !!dataPath &&
+    !!docsPath &&
+    !createMutation.isPending &&
+    !(preview.data && (!preview.data.data.exists || !preview.data.docs.exists))
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 28, maxWidth: 1280 }}>
@@ -46,15 +61,33 @@ export default function RunSetup() {
             Data directory
             <span className="hint">CSV, XLSX, or Parquet</span>
           </label>
-          <input className="field" value={dataPath} onChange={(e) => setDataPath(e.target.value)} />
-          <PathPreview items={DATA_FILES} count={5} />
+          <input
+            className="field"
+            value={dataPath}
+            onChange={(e) => setDataPath(e.target.value)}
+          />
+          <PreviewChips
+            side={preview.data?.data}
+            loading={preview.isLoading || (preview.isFetching && !preview.data)}
+            error={preview.error}
+            empty={!debouncedData}
+          />
 
           <label className="label" style={{ marginTop: 28 }}>
             Documents directory
             <span className="hint">PDF, DOCX, MD, TXT</span>
           </label>
-          <input className="field" value={docsPath} onChange={(e) => setDocsPath(e.target.value)} />
-          <PathPreview items={DOC_FILES} count={14} />
+          <input
+            className="field"
+            value={docsPath}
+            onChange={(e) => setDocsPath(e.target.value)}
+          />
+          <PreviewChips
+            side={preview.data?.docs}
+            loading={preview.isLoading || (preview.isFetching && !preview.data)}
+            error={preview.error}
+            empty={!debouncedDocs}
+          />
         </div>
       </div>
 
@@ -64,18 +97,38 @@ export default function RunSetup() {
             <span className="dot" />
             Run summary
           </div>
-          <SummaryRow k="Engagement" v="BSMH Pay Consistency" />
-          <SummaryRow k="Markets" v="9 detected" />
-          <SummaryRow k="CBAs" v="11 anticipated" />
-          <SummaryRow k="Temporal scope" v="14 months · trend ON" />
-          <SummaryRow k="Estimated runtime" v="~12 min" />
+          <SummaryRow k="Data path" v={truncate(dataPath, 36)} />
+          <SummaryRow k="Docs path" v={truncate(docsPath, 36)} />
+          <SummaryRow
+            k="Data files"
+            v={summaryCount(preview.data?.data, preview.isFetching)}
+          />
+          <SummaryRow
+            k="Doc files"
+            v={summaryCount(preview.data?.docs, preview.isFetching)}
+          />
           <button
             className="btn primary"
+            disabled={!canStart}
             style={{ width: '100%', marginTop: 18, padding: '12px' }}
-            onClick={handleStart}
+            onClick={() => createMutation.mutate()}
           >
-            Start run →
+            {createMutation.isPending ? 'Starting…' : 'Start run →'}
           </button>
+          {createMutation.error ? (
+            <div
+              style={{
+                marginTop: 12,
+                fontSize: 12,
+                color: 'oklch(0.45 0.18 25)',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              {createMutation.error instanceof ApiError
+                ? `Start failed: ${createMutation.error.message}`
+                : 'Start failed.'}
+            </div>
+          ) : null}
           <div
             style={{
               fontSize: 11,
@@ -85,37 +138,7 @@ export default function RunSetup() {
               letterSpacing: '0.06em',
             }}
           >
-            Initializes 5 subgraphs · ledger row created
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: 24, marginTop: 16 }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>
-            <span className="dot" />
-            Discovery preview
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
-            {[
-              ['5 tables', 'timesheet_v3, schedule_v2, payroll_v3, employee_v2, absence_codes_lkp'],
-              ['14 docs', '9 CBAs · 5 policy documents'],
-              ['18 pay practices', 'OT, Consecutive Days, Stacking, Callback, Critical Staffing…'],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
-                    color: 'var(--ink-mute)',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    marginBottom: 2,
-                  }}
-                >
-                  {k}
-                </div>
-                <div style={{ color: 'var(--ink-2)' }}>{v}</div>
-              </div>
-            ))}
+            POST /runs · run row created · graph dispatched
           </div>
         </div>
       </div>
@@ -123,32 +146,98 @@ export default function RunSetup() {
   )
 }
 
-function PathPreview({ items, count }: { items: string[]; count: number }) {
-  return (
-    <div
-      style={{
-        marginTop: 10,
-        padding: '10px 14px',
-        background: 'var(--bg-soft)',
-        borderRadius: 8,
-        fontSize: 12,
-        color: 'var(--ink-soft)',
-        fontFamily: 'var(--font-mono)',
-      }}
-    >
-      <div style={{ color: 'var(--jade-deep)', marginBottom: 6 }}>
-        ✓ {count} files detected
+function summaryCount(side: PathPreviewSide | undefined, loading: boolean): string {
+  if (loading && !side) return 'checking…'
+  if (!side) return '—'
+  if (!side.exists) return 'path not found'
+  return `${side.count}`
+}
+
+function truncate(s: string, n: number): string {
+  if (s.length <= n) return s
+  return '…' + s.slice(-n)
+}
+
+function PreviewChips({
+  side,
+  loading,
+  error,
+  empty,
+}: {
+  side: PathPreviewSide | undefined
+  loading: boolean
+  error: unknown
+  empty: boolean
+}) {
+  const baseStyle = {
+    marginTop: 10,
+    padding: '10px 14px',
+    background: 'var(--bg-soft)',
+    borderRadius: 8,
+    fontSize: 12,
+    color: 'var(--ink-soft)',
+    fontFamily: 'var(--font-mono)',
+  } as const
+
+  if (empty) {
+    return (
+      <div style={baseStyle}>
+        <div style={{ color: 'var(--ink-mute)' }}>Enter a path…</div>
       </div>
-      {items.slice(0, 3).map((i) => (
-        <div key={i} style={{ color: 'var(--ink-mute)' }}>
-          ↳ {i}
+    )
+  }
+  if (loading) {
+    return (
+      <div style={baseStyle}>
+        <div style={{ color: 'var(--ink-mute)' }}>↳ checking path…</div>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div style={baseStyle}>
+        <div style={{ color: 'oklch(0.45 0.18 25)' }}>
+          ✗ {error instanceof ApiError ? error.message : 'preview failed'}
+        </div>
+      </div>
+    )
+  }
+  if (!side) {
+    return (
+      <div style={baseStyle}>
+        <div style={{ color: 'var(--ink-mute)' }}>—</div>
+      </div>
+    )
+  }
+  if (!side.exists) {
+    return (
+      <div style={baseStyle}>
+        <div style={{ color: 'oklch(0.45 0.18 25)' }}>✗ path not found or not accessible</div>
+      </div>
+    )
+  }
+  return (
+    <div style={baseStyle}>
+      <div style={{ color: 'var(--jade-deep)', marginBottom: 6 }}>
+        ✓ {side.count} files detected
+      </div>
+      {side.files.slice(0, 3).map((f) => (
+        <div key={f.rel_path} style={{ color: 'var(--ink-mute)' }}>
+          ↳ {f.name} <span style={{ opacity: 0.6 }}>({fmtSize(f.size_bytes)})</span>
         </div>
       ))}
-      {items.length > 3 ? (
-        <div style={{ color: 'var(--ink-mute)' }}>↳ … {items.length - 3} more</div>
+      {side.count > 3 ? (
+        <div style={{ color: 'var(--ink-mute)' }}>↳ … {side.count - 3} more</div>
       ) : null}
     </div>
   )
+}
+
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)}GB`
 }
 
 function SummaryRow({ k, v }: { k: string; v: string }) {
@@ -160,10 +249,24 @@ function SummaryRow({ k, v }: { k: string; v: string }) {
         padding: '10px 0',
         borderBottom: '1px solid var(--line-soft)',
         fontSize: 13,
+        gap: 12,
       }}
     >
-      <span style={{ color: 'var(--ink-soft)' }}>{k}</span>
-      <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{v}</span>
+      <span style={{ color: 'var(--ink-soft)', flexShrink: 0 }}>{k}</span>
+      <span
+        style={{
+          color: 'var(--ink)',
+          fontWeight: 500,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 12,
+          textAlign: 'right',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {v}
+      </span>
     </div>
   )
 }

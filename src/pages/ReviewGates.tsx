@@ -1,31 +1,43 @@
-import { useState } from 'react'
-import { getReviewGates } from '@/api/mock'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getReviewGates, submitReviewDecision } from '@/api/client'
 import GateCard from '@/components/GateCard'
 import NotReadyState from '@/components/NotReadyState'
+import { useActiveRun } from '@/hooks/useActiveRun'
 import type { ReviewGate } from '@/types/api'
 
 export default function ReviewGates() {
-  const [gates, setGates] = useState<ReviewGate[]>(getReviewGates())
+  const { runId } = useActiveRun()
+  const qc = useQueryClient()
 
-  function handleDecision(reviewId: string, decision: string, _notes: string) {
-    setGates((prev) =>
-      prev.map((g) =>
-        g.review_id === reviewId
-          ? {
-              ...g,
-              status:
-                decision === 'approve'
-                  ? 'approved'
-                  : decision === 'request_rework'
-                    ? 'rework_requested'
-                    : 'cancelled',
-            }
-          : g
-      )
+  const gatesQ = useQuery({
+    queryKey: ['review-gates', runId],
+    queryFn: () => getReviewGates(runId!),
+    enabled: !!runId,
+  })
+
+  const decisionMutation = useMutation({
+    mutationFn: ({ reviewId, decision, notes }: { reviewId: string; decision: string; notes: string }) =>
+      submitReviewDecision(runId!, reviewId, {
+        decision: decision as 'approve' | 'request_rework' | 'cancel',
+        notes,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['review-gates', runId] })
+    },
+  })
+
+  if (!runId) {
+    return (
+      <NotReadyState reason="No active run." prerequisite="Start a run from Run Setup." />
     )
   }
 
-  const allNotReached = gates.every((g) => g.status === 'not_reached')
+  const gates: ReviewGate[] = gatesQ.data ?? []
+  const allNotReached = gates.length === 0 || gates.every((g) => g.status === 'not_reached')
+
+  if (gatesQ.isLoading) {
+    return <NotReadyState reason="Loading gates…" prerequisite="" />
+  }
 
   if (allNotReached) {
     return (
@@ -53,8 +65,20 @@ export default function ReviewGates() {
       </div>
 
       {gates.map((gate) => (
-        <GateCard key={gate.review_id} gate={gate} onDecision={handleDecision} />
+        <GateCard
+          key={gate.review_id}
+          gate={gate}
+          onDecision={(reviewId, decision, notes) =>
+            decisionMutation.mutate({ reviewId, decision, notes })
+          }
+        />
       ))}
+
+      {decisionMutation.error ? (
+        <div style={{ fontSize: 12, color: 'oklch(0.45 0.18 25)', fontFamily: 'var(--font-mono)' }}>
+          Decision failed: {(decisionMutation.error as Error).message}
+        </div>
+      ) : null}
     </div>
   )
 }

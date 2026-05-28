@@ -1,48 +1,32 @@
 import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import ChatPanel from '@/components/ChatPanel'
 import StatusBadge from '@/components/StatusBadge'
-import { getCorpusStatus, getRagAnswer, RAG_TRANSCRIPT } from '@/api/mock'
+import { askDocumentRAG, getCorpusStatus } from '@/api/client'
+import { useActiveRun } from '@/hooks/useActiveRun'
 import type { ChatMessage } from '@/types/api'
 
 const SUGGESTED_QUESTIONS = [
-  'Stacking cap across all CBAs?',
-  'Callback minimum hours ROC vs non-ROC?',
-  'VTO counted toward OT threshold?',
-  'WEO eligibility window rules?',
-  'Holiday pay premium rate?',
+  'What does the policy say about meal periods?',
+  'Are missed meal breaks compensated?',
+  'How is overtime defined?',
+  'What are the timekeeping accuracy requirements?',
 ]
-
-const RECENT_QUERIES = [
-  'Consecutive day premium — allied health exclusion?',
-  'Preceptor pay credential expiration policy',
-  'Break exception manager attestation requirement',
-  'Premium labor code increase YoY correlation',
-]
-
-function mapRagToMessages(): ChatMessage[] {
-  return RAG_TRANSCRIPT.map((m) => ({
-    role: m.role as 'user' | 'assistant',
-    content: m.text,
-    confidence: m.confidence,
-    citations: m.citations?.map((c) => ({
-      chunk_id: '',
-      filename: c.doc,
-      page: c.page,
-      section: c.section,
-      excerpt: '',
-    })),
-    limitations: m.limitations ? [m.limitations] : undefined,
-  }))
-}
 
 export default function AskDocuments() {
-  const corpus = getCorpusStatus()
-  const [messages, setMessages] = useState<ChatMessage[]>(mapRagToMessages())
+  const { runId } = useActiveRun()
+  const [messages, setMessages] = useState<ChatMessage[]>([])
 
-  function handleSend(text: string) {
-    setMessages((prev) => [...prev, { role: 'user', content: text }])
-    const answer = getRagAnswer(text)
-    setTimeout(() => {
+  const corpusQ = useQuery({
+    queryKey: ['corpus-status', runId],
+    queryFn: () => getCorpusStatus(runId!),
+    enabled: !!runId,
+  })
+
+  const askMutation = useMutation({
+    mutationFn: (question: string) =>
+      askDocumentRAG({ run_id: runId!, question }),
+    onSuccess: (answer) => {
       setMessages((prev) => [
         ...prev,
         {
@@ -54,60 +38,71 @@ export default function AskDocuments() {
           answerable: answer.answerable,
         },
       ])
-    }, 600)
+    },
+  })
+
+  function handleSend(text: string) {
+    if (!runId) return
+    setMessages((prev) => [...prev, { role: 'user', content: text }])
+    askMutation.mutate(text)
   }
+
+  if (!runId) {
+    return (
+      <div className="card" style={{ padding: 32 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>No active run</div>
+        <p style={{ color: 'var(--ink-soft)', fontSize: 14, margin: 0 }}>
+          Start a run from <strong>Run Setup</strong> to populate this page.
+        </p>
+      </div>
+    )
+  }
+
+  const corpus = corpusQ.data
+  const ready = corpus?.status === 'ready'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, height: 'calc(100vh - 8rem)' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, flex: 1, minHeight: 0 }}>
-        {/* Left: Chat */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
-          {/* Corpus status banner */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 12,
               padding: '12px 18px',
-              background: 'var(--jade-soft)',
+              background: ready ? 'var(--jade-soft)' : 'var(--bg-soft)',
               borderBottom: '1px solid var(--line-soft)',
             }}
           >
-            <StatusBadge status="ready" />
+            <StatusBadge status={corpus?.status ?? 'not_started'} />
             <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-              Corpus ready · {corpus.indexed_count}/{corpus.total_count} documents indexed
+              {corpusQ.isLoading
+                ? 'Loading corpus status…'
+                : corpus
+                  ? `${corpus.indexed_count}/${corpus.total_count} documents indexed (${corpus.readiness_pct}%)`
+                  : 'Corpus status unavailable'}
             </span>
           </div>
           <div style={{ flex: 1, minHeight: 0 }}>
             <ChatPanel
               messages={messages}
               onSend={handleSend}
-              placeholder="Ask about policy, CBA, or pay practices…"
+              placeholder={ready ? 'Ask about policy, CBA, or pay practices…' : 'Corpus not ready yet…'}
             />
           </div>
         </div>
 
-        {/* Right sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
-          {/* Scope card */}
           <div className="card">
-            <div className="eyebrow" style={{ marginBottom: 10 }}>
-              Scope
-            </div>
-            <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--ink-2)', margin: '0 0 14px' }}>
-              Answers are grounded in 14 uploaded documents (CBAs, policies, addendums). You can filter
-              by document type or specific file.
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Scope</div>
+            <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--ink-2)', margin: 0 }}>
+              Answers are grounded in this run's processed documents only.
             </p>
-            <button className="btn" style={{ width: '100%' }}>
-              Filter documents…
-            </button>
           </div>
 
-          {/* Suggested questions */}
           <div className="card">
-            <div className="eyebrow" style={{ marginBottom: 12 }}>
-              Suggested questions
-            </div>
+            <div className="eyebrow" style={{ marginBottom: 12 }}>Suggested questions</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {SUGGESTED_QUESTIONS.map((q) => (
                 <button
@@ -122,6 +117,7 @@ export default function AskDocuments() {
                     whiteSpace: 'normal',
                     lineHeight: 1.4,
                   }}
+                  disabled={!ready || askMutation.isPending}
                 >
                   {q}
                 </button>
@@ -129,28 +125,11 @@ export default function AskDocuments() {
             </div>
           </div>
 
-          {/* Recent queries */}
-          <div className="card">
-            <div className="eyebrow" style={{ marginBottom: 12 }}>
-              Recent queries
+          {askMutation.error ? (
+            <div className="card" style={{ fontSize: 12, color: 'oklch(0.45 0.18 25)', fontFamily: 'var(--font-mono)' }}>
+              RAG failed: {(askMutation.error as Error).message}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {RECENT_QUERIES.map((q) => (
-                <div
-                  key={q}
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--ink-2)',
-                    paddingBottom: 10,
-                    borderBottom: '1px solid var(--line-soft)',
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {q}
-                </div>
-              ))}
-            </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>

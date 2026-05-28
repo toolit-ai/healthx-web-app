@@ -64,53 +64,61 @@ export default function StageTracker({ stages }: StageTrackerProps) {
       </h2>
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {stages.map((s, i) => (
-          <div
-            key={s.stage_id}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '22px 1fr auto',
-              gap: 14,
-              alignItems: 'center',
-              padding: '9px 0',
-              borderBottom: i < stages.length - 1 ? '1px solid var(--line-soft)' : 'none',
-              paddingLeft: s.sub_stages && s.sub_stages.length > 0 ? 0 : 0,
-            }}
-          >
-            <StageIcon status={s.status} />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
-              <span
-                style={{
-                  fontSize: 13.5,
-                  color:
-                    s.status === 'completed'
-                      ? 'var(--ink-2)'
-                      : s.status === 'running'
-                        ? 'var(--ink)'
-                        : 'var(--ink-mute)',
-                  fontWeight: s.status === 'running' ? 500 : 400,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {s.name}
-              </span>
-              {s.name.includes('Gate') ? <Pill>review gate</Pill> : null}
-            </div>
-            <span
-              className="num"
+        {stages.map((s, i) => {
+          const label = s.stage_name ?? s.name ?? '—'
+          return (
+            <div
+              key={s.stage_id ?? label ?? i}
               style={{
-                fontSize: 11,
-                color: 'var(--ink-mute)',
-                letterSpacing: '0.04em',
-                whiteSpace: 'nowrap',
+                display: 'grid',
+                gridTemplateColumns: '22px 1fr auto',
+                gap: 14,
+                alignItems: 'center',
+                padding: '9px 0',
+                borderBottom: i < stages.length - 1 ? '1px solid var(--line-soft)' : 'none',
               }}
             >
-              {s.status === 'completed' ? 'Done' : s.status === 'running' ? `${s.progress_pct}%` : '—'}
-            </span>
-          </div>
-        ))}
+              <StageIcon status={s.status} />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+                <span
+                  style={{
+                    fontSize: 13.5,
+                    color:
+                      s.status === 'completed'
+                        ? 'var(--ink-2)'
+                        : s.status === 'running'
+                          ? 'var(--ink)'
+                          : 'var(--ink-mute)',
+                    fontWeight: s.status === 'running' ? 500 : 400,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {label}
+                </span>
+                {label.toLowerCase().includes('gate') ? <Pill>review gate</Pill> : null}
+              </div>
+              <span
+                className="num"
+                style={{
+                  fontSize: 11,
+                  color: 'var(--ink-mute)',
+                  letterSpacing: '0.04em',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {s.status === 'completed'
+                  ? 'Done'
+                  : s.status === 'running'
+                    ? s.progress_pct != null
+                      ? `${s.progress_pct}%`
+                      : 'running'
+                    : '—'}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
