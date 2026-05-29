@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import Logo from './Logo'
@@ -194,6 +195,7 @@ function StageDot({ id }: { id: string }) {
 function TopBar({ currentRoute }: { currentRoute: string }) {
   const meta = PIPELINE_STAGES.find((s) => s.route === currentRoute)
   const { runId } = useActiveRun()
+  const [lastRefresh, setLastRefresh] = useState(() => new Date())
   const statusQ = useQuery({
     queryKey: ['run-status', runId],
     queryFn: () => getRunStatus(runId!),
@@ -261,9 +263,9 @@ function TopBar({ currentRoute }: { currentRoute: string }) {
       </div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-mute)', letterSpacing: '0.06em' }}>
-          updated 11:05:01
+          updated {lastRefresh.toLocaleTimeString('en-US', { hour12: false })}
         </span>
-        <button className="btn ghost sm" title="Manual refresh — no polling enabled">
+        <button className="btn ghost sm" title="Manual refresh" onClick={() => setLastRefresh(new Date())}>
           ↻ Refresh
         </button>
       </div>

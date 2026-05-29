@@ -26,6 +26,7 @@ export default function RunSetup() {
     queryKey: ['paths-preview', debouncedData, debouncedDocs],
     queryFn: () => previewPaths({ data_path: debouncedData, docs_path: debouncedDocs }),
     enabled: !!debouncedData && !!debouncedDocs,
+    retry: false,
   })
 
   const createMutation = useMutation({

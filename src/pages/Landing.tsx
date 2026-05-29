@@ -890,7 +890,7 @@ function Footer() {
           }}
         >
           <div>© 2026 HealthX Labs</div>
-          <div>v2.6 · build 2026.05.20</div>
+          <div>v2.6 · build 2026.05.29</div>
           <div>SOC 2 Type II · HIPAA-aligned</div>
         </div>
       </div>
