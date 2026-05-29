@@ -1062,27 +1062,6 @@ function Catalog({ runId }: { runId: string }) {
   )
 }
 
-function StatChip({ label, v }: { label: string; v: string | number }) {
-  return (
-    <div>
-      <div
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 10,
-          color: 'var(--ink-mute)',
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-        }}
-      >
-        {label}
-      </div>
-      <div className="num" style={{ fontSize: 20, fontWeight: 500, marginTop: 4, letterSpacing: '-0.01em' }}>
-        {v}
-      </div>
-    </div>
-  )
-}
-
 function EmptyCell({ label }: { label: string }) {
   return (
     <div style={{ padding: 24, color: 'var(--ink-soft)', fontSize: 13 }}>
