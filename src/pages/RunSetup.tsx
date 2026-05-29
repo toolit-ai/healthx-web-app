@@ -10,10 +10,8 @@ import {
 import { useActiveRun } from '@/hooks/useActiveRun'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
-const DEFAULT_DATA_PATH =
-  '/Users/rishabharya/Desktop/bsmh-workspace/bsmh-agentic-system/demo_upload/set_a_clean'
-const DEFAULT_DOCS_PATH =
-  '/Users/rishabharya/Desktop/bsmh-workspace/bsmh-agentic-system/demo_upload/docs'
+const DEFAULT_DATA_PATH = 'bsmh-agentic-system/demo_upload/set_a_clean'
+const DEFAULT_DOCS_PATH = 'bsmh-agentic-system/demo_upload/docs_structured'
 
 export default function RunSetup() {
   const navigate = useNavigate()
