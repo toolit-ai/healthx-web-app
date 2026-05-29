@@ -179,7 +179,7 @@ function DocumentQualityStrip({ runId }: { runId: string }) {
   const items = [
     { label: 'Documents', value: d.document_count ?? d.total_documents ?? '—' },
     { label: 'Rules extracted', value: d.rule_count ?? d.total_rules ?? '—' },
-    { label: 'Citation coverage', value: d.citation_coverage_pct != null ? `${Math.round(d.citation_coverage_pct * 100)}%` : '—' },
+    { label: 'Citation coverage', value: d.citation_coverage_pct != null ? `${Math.round(d.citation_coverage_pct)}%` : '—' },
     { label: 'Need review', value: d.rules_requiring_review ?? '—' },
     { label: 'Rule conflicts', value: d.rule_conflict_count ?? '—' },
   ]

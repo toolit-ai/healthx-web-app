@@ -14,7 +14,7 @@ import type {
   KeyVariables,
   PayProvision,
   ProgressSnapshot,
-  RelationshipEntry,
+  RelationshipIssue,
   ReportInfo,
   ReviewGate,
   RunStatus,
@@ -182,13 +182,16 @@ export function getBivariate(runId: string) {
 }
 
 export function getWorkforceContext(runId: string) {
-  return fetchJson<WorkforceContextProfile | { run_id: string; key: null }>(
+  return fetchJson<{ run_id: string; context: WorkforceContextProfile } | { run_id: string; key: null }>(
     `/runs/${runId}/dq/workforce-context`,
-  )
+  ).then(d => ('context' in d ? d.context : null))
 }
 
 export function getRelationships(runId: string) {
-  return fetchJson<{ relationships: RelationshipEntry[] }>(`/runs/${runId}/dq/relationships`)
+  return fetchJson<{
+    run_id: string
+    relationships: { run_id: string; issues: RelationshipIssue[]; checked_at: string }
+  }>(`/runs/${runId}/dq/relationships`).then(d => ({ relationships: d.relationships.issues }))
 }
 
 export function getCatalog(runId: string) {

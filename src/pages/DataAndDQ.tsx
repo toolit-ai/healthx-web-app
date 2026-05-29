@@ -21,9 +21,8 @@ import type {
   CatalogEntry,
   ColumnProfile,
   DQIssue,
-  RelationshipEntry,
+  RelationshipIssue,
   TableProfile,
-  WorkforceContextProfile,
 } from '@/types/api'
 
 const TABS = [
@@ -635,7 +634,7 @@ function BivariateAnalysis({ runId }: { runId: string }) {
     .sort((a, b) => (b.value ?? b.stat ?? 0) - (a.value ?? a.stat ?? 0))
 
   const cvPairs = (bp.dimension_pair_assoc ?? [])
-    .sort((a, b) => b.cramers_v - a.cramers_v)
+    .sort((a, b) => b.value - a.value)
 
   function corrFor(i: number, j: number): number {
     if (i === j) return 1
@@ -793,16 +792,16 @@ function BivariateAnalysis({ runId }: { runId: string }) {
             </thead>
             <tbody>
               {cvPairs.map((p, i) => {
-                const sig = p.cramers_v >= 0.5
+                const sig = p.significant ?? p.value >= 0.5
                 return (
                   <tr key={i}>
-                    <td className="num">{p.dim_a}</td>
-                    <td className="num">{p.dim_b}</td>
+                    <td className="num">{p.col_a}</td>
+                    <td className="num">{p.col_b}</td>
                     <td
                       className="num"
-                      style={{ color: p.cramers_v >= 0.7 ? 'var(--crimson)' : p.cramers_v >= 0.5 ? 'var(--terra)' : 'var(--ink-2)' }}
+                      style={{ color: p.value >= 0.7 ? 'var(--crimson)' : p.value >= 0.5 ? 'var(--terra)' : 'var(--ink-2)' }}
                     >
-                      {p.cramers_v.toFixed(3)}
+                      {p.value.toFixed(3)}
                     </td>
                     <td style={{ color: sig ? 'var(--jade-deep)' : 'var(--ink-mute)' }}>
                       {sig ? '✓' : '—'}
@@ -826,10 +825,10 @@ function WorkforceContext({ runId }: { runId: string }) {
 
   if (q.isLoading) return <EmptyCard label="Loading workforce context…" />
   const data = q.data
-  if (!data || !('pay_code_concentration' in data)) {
+  if (!data) {
     return <EmptyCard label="Workforce context not yet available." />
   }
-  const ctx = data as WorkforceContextProfile
+  const ctx = data
   const sortedSegments = [...ctx.segment_health_scores].sort((a, b) => a.dq_score - b.dq_score)
   const recentPeriods = [...ctx.temporal_period_stats].slice(-12)
   const hourDist = ctx.hour_distribution ?? {}
@@ -980,32 +979,31 @@ function Relationships({ runId }: { runId: string }) {
     queryKey: ['dq-relationships', runId],
     queryFn: () => getRelationships(runId),
   })
-  const relationships: RelationshipEntry[] = q.data?.relationships ?? []
+  const issues: RelationshipIssue[] = q.data?.relationships ?? []
 
   if (q.isLoading) return <EmptyCard label="Loading relationships…" />
-  if (relationships.length === 0) return <EmptyCard label="No cross-table relationships detected yet." />
+  if (issues.length === 0) return <EmptyCard label="No cross-table relationship issues detected." />
 
   return (
     <div className="card" style={{ padding: 28 }}>
       <div className="eyebrow" style={{ marginBottom: 20 }}>Cross-table relationship validation</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-        {relationships.map((r, i) => {
-          const label = `${r.table_a}.${r.column_a} → ${r.table_b}.${r.column_b}`
-          const pct = r.confidence * 100
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {issues.map((r) => {
+          const sevColor = r.severity === 'critical' || r.severity === 'high' ? 'var(--crimson)' : r.severity === 'medium' ? 'var(--terra)' : 'var(--ink-soft)'
           return (
-            <div key={i} style={{ padding: 16, background: 'var(--bg-soft)', borderRadius: 10 }}>
-              <div className="num" style={{ fontSize: 12, color: 'var(--ink-2)' }}>{label}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{r.relationship_type}</span>
-                <span
-                  className="num"
-                  style={{
-                    fontWeight: 500,
-                    color: pct >= 99.5 ? 'var(--jade-deep)' : 'var(--terra)',
-                  }}
-                >
-                  {pct.toFixed(1)}%
+            <div key={r.issue_id} style={{ padding: 14, background: 'var(--bg-soft)', borderRadius: 10, borderLeft: `3px solid ${sevColor}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span className="num" style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+                  {r.table_name}{r.related_table ? ` → ${r.related_table}` : ''}
                 </span>
+                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: sevColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {r.severity}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>{r.description}</div>
+              <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--font-mono)' }}>
+                <span>{r.check_type}</span>
+                {r.affected_count > 0 && <span>{r.affected_count.toLocaleString()} affected</span>}
               </div>
             </div>
           )

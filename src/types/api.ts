@@ -29,7 +29,14 @@ export interface BivariateProfile {
   measure_correlations: Array<{ col_a: string; col_b: string; assoc_type: string; value: number }>
   vif_scores: Array<{ column: string; vif: number; risk: string }> | Record<string, unknown>
   dimension_measure_assoc?: Array<{ dimension?: string; measure?: string; col_a?: string; col_b?: string; stat?: number; value?: number; p_value?: number }>
-  dimension_pair_assoc?: Array<{ dim_a: string; dim_b: string; cramers_v: number }>
+  dimension_pair_assoc?: Array<{
+    col_a: string
+    col_b: string
+    assoc_type?: string
+    value: number
+    p_value?: number
+    significant?: boolean
+  }>
   high_correlation_pairs?: number
   profiled_at?: string
 }
@@ -300,13 +307,14 @@ export interface CatalogEntry {
   inferred_semantic_type: string
 }
 
-export interface RelationshipEntry {
-  table_a: string
-  column_a: string
-  table_b: string
-  column_b: string
-  relationship_type: string
-  confidence: number
+export interface RelationshipIssue {
+  issue_id: string
+  check_type: string
+  description: string
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  table_name: string
+  related_table: string | null
+  affected_count: number
 }
 
 export interface KeyFactor {
