@@ -1,4 +1,14 @@
 import { useMemo, useState } from 'react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import MetricCard from '@/components/MetricCard'
 import SeverityDot from '@/components/SeverityDot'
@@ -18,6 +28,13 @@ import { useActiveRun } from '@/hooks/useActiveRun'
 import type { BLEDAFinding, InsightCard, KeyFactor, KeyVariables, ScenarioResult } from '@/types/api'
 
 const TABS = ['Findings', 'Scenarios', 'Insights', 'Key Factors', 'Key Variables', 'Plan'] as const
+
+const SEV_COLORS: Record<string, string> = {
+  critical: 'oklch(0.45 0.18 25)',
+  high: 'oklch(0.6 0.16 50)',
+  medium: 'oklch(0.75 0.14 80)',
+  low: 'oklch(0.55 0.12 150)',
+}
 
 export default function BLEDAFindings() {
   const { runId } = useActiveRun()
@@ -120,6 +137,35 @@ export default function BLEDAFindings() {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1])
   }, [findings])
 
+  const topImpactFindings = useMemo(() =>
+    [...findings]
+      .filter((f) => (f.dollar_impact ?? 0) > 0)
+      .sort((a, b) => b.dollar_impact - a.dollar_impact)
+      .slice(0, 5),
+    [findings],
+  )
+
+  const practiceBySev = useMemo(() => {
+    const map = new Map<string, { critical: number; high: number; medium: number; low: number }>()
+    for (const f of findings) {
+      if (!map.has(f.pay_practice)) {
+        map.set(f.pay_practice, { critical: 0, high: 0, medium: 0, low: 0 })
+      }
+      const entry = map.get(f.pay_practice)!
+      if (f.severity === 'critical') entry.critical++
+      else if (f.severity === 'high') entry.high++
+      else if (f.severity === 'medium') entry.medium++
+      else if (f.severity === 'low') entry.low++
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => {
+        const ta = a[1].critical + a[1].high + a[1].medium + a[1].low
+        const tb = b[1].critical + b[1].high + b[1].medium + b[1].low
+        return tb - ta
+      })
+      .map(([practice, counts]) => ({ practice, ...counts }))
+  }, [findings])
+
   const scenarioGroups = useMemo(() => {
     const acc: Record<string, ScenarioResult[]> = {}
     for (const s of scenarios) {
@@ -177,6 +223,31 @@ export default function BLEDAFindings() {
             })}
           </div>
 
+          {tab === 'Findings' && topImpactFindings.length > 0 && (
+            <div className="card" style={{ padding: 16, marginBottom: 20 }}>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>Top findings by $ exposure</div>
+              <ResponsiveContainer width="100%" height={topImpactFindings.length * 36 + 20}>
+                <BarChart
+                  layout="vertical"
+                  data={topImpactFindings.map((f) => ({
+                    title: f.title.length > 45 ? f.title.slice(0, 45) + '…' : f.title,
+                    impact: f.dollar_impact,
+                    severity: f.severity,
+                  }))}
+                  margin={{ left: 0, right: 80, top: 0, bottom: 0 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}K`} />
+                  <YAxis type="category" dataKey="title" width={220} tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-soft)' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} formatter={(v) => [`$${Number(v).toLocaleString()}`, 'Exposure']} />
+                  <Bar dataKey="impact" radius={[0, 3, 3, 0]}>
+                    {topImpactFindings.map((f, i) => (
+                      <Cell key={i} fill={SEV_COLORS[f.severity] ?? 'var(--brand)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
           {tab === 'Findings' && (
             <FindingsTab
               runId={runId}
@@ -214,17 +285,30 @@ export default function BLEDAFindings() {
           {practiceStats.length === 0 ? (
             <div style={{ color: 'var(--ink-soft)', fontSize: 13 }}>No practices yet.</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {practiceStats.map(([name, count]) => (
-                <div
-                  key={name}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8 }}
-                >
-                  <span style={{ flex: 1, fontSize: 13, color: 'var(--ink-2)' }}>{name}</span>
-                  <span className="num" style={{ fontSize: 11, color: 'var(--ink-mute)' }}>{count}</span>
-                </div>
-              ))}
-            </div>
+            <>
+              <ResponsiveContainer width="100%" height={Math.max(60, practiceBySev.length * 24)}>
+                <BarChart layout="vertical" data={practiceBySev} margin={{ left: 0, right: 8, top: 0, bottom: 0 }}>
+                  <XAxis type="number" tick={{ fontSize: 9, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="practice" width={90} tick={{ fontSize: 9, fontFamily: 'var(--font-mono)', fill: 'var(--ink-soft)' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 11, fontFamily: 'var(--font-mono)' }} />
+                  <Bar dataKey="critical" stackId="a" fill={SEV_COLORS.critical} />
+                  <Bar dataKey="high" stackId="a" fill={SEV_COLORS.high} />
+                  <Bar dataKey="medium" stackId="a" fill={SEV_COLORS.medium} />
+                  <Bar dataKey="low" stackId="a" fill={SEV_COLORS.low} radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+                {practiceStats.map(([name, count]) => (
+                  <div
+                    key={name}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8 }}
+                  >
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--ink-2)' }}>{name}</span>
+                    <span className="num" style={{ fontSize: 11, color: 'var(--ink-mute)' }}>{count}</span>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -636,34 +720,60 @@ function KeyFactorsTab({ loading, factors }: { loading: boolean; factors: KeyFac
   if (factors.length === 0) {
     return <div className="card" style={{ padding: 22, color: 'var(--ink-soft)', fontSize: 13 }}>No key factors computed yet.</div>
   }
+  const chartData = [...factors]
+    .sort((a, b) => b.effect_size - a.effect_size)
+    .slice(0, 10)
+    .map((f) => ({
+      label: `${f.dimension ?? '?'} → ${f.measure}`,
+      effect: f.effect_size,
+      direction: f.direction,
+    }))
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-      <table className="hx">
-        <thead>
-          <tr>
-            <th>Factor type</th>
-            <th>Measure</th>
-            <th>Dimension</th>
-            <th>Effect size</th>
-            <th>Direction</th>
-            <th>Tier</th>
-            <th>Practice</th>
-          </tr>
-        </thead>
-        <tbody>
-          {factors.map((f) => (
-            <tr key={f.factor_id}>
-              <td><Pill>{f.factor_type}</Pill></td>
-              <td className="num">{f.measure}</td>
-              <td className="num" style={{ color: 'var(--ink-soft)' }}>{f.dimension ?? '—'}</td>
-              <td className="num">{f.effect_size?.toFixed(3)}</td>
-              <td style={{ color: f.direction === 'decreasing' ? 'var(--terra)' : 'var(--jade-deep)', fontSize: 12 }}>{f.direction}</td>
-              <td className="num" style={{ color: 'var(--ink-soft)' }}>{f.tier}</td>
-              <td><Pill kind="ink">{f.pay_practice}</Pill></td>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="card" style={{ padding: 22 }}>
+        <div className="eyebrow" style={{ marginBottom: 14 }}>Top 10 by effect size</div>
+        <ResponsiveContainer width="100%" height={Math.max(80, chartData.length * 32)}>
+          <BarChart layout="vertical" data={chartData} margin={{ left: 0, right: 24, top: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" horizontal={false} />
+            <XAxis type="number" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="label" width={180} tick={{ fontSize: 9, fontFamily: 'var(--font-mono)', fill: 'var(--ink-soft)' }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} formatter={(v) => [Number(v).toFixed(3), 'Effect size']} />
+            <Bar dataKey="effect" radius={[0, 3, 3, 0]}>
+              {chartData.map((d, i) => (
+                <Cell key={i} fill={d.direction === 'increasing' || d.direction === 'positive' ? 'oklch(0.55 0.12 150)' : 'oklch(0.45 0.18 25)'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table className="hx">
+          <thead>
+            <tr>
+              <th>Factor type</th>
+              <th>Measure</th>
+              <th>Dimension</th>
+              <th>Effect size</th>
+              <th>Direction</th>
+              <th>Tier</th>
+              <th>Practice</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {factors.map((f) => (
+              <tr key={f.factor_id}>
+                <td><Pill>{f.factor_type}</Pill></td>
+                <td className="num">{f.measure}</td>
+                <td className="num" style={{ color: 'var(--ink-soft)' }}>{f.dimension ?? '—'}</td>
+                <td className="num">{f.effect_size?.toFixed(3)}</td>
+                <td style={{ color: f.direction === 'decreasing' ? 'var(--terra)' : 'var(--jade-deep)', fontSize: 12 }}>{f.direction}</td>
+                <td className="num" style={{ color: 'var(--ink-soft)' }}>{f.tier}</td>
+                <td><Pill kind="ink">{f.pay_practice}</Pill></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,19 @@
 import { useMemo, useState } from 'react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Line,
+  Pie,
+  PieChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import MetricCard from '@/components/MetricCard'
 import StatusBadge from '@/components/StatusBadge'
@@ -147,6 +162,12 @@ function TabBar({
 }
 
 const SEV_ORDER = ['critical', 'high', 'medium', 'low'] as const
+const SEV_COLORS: Record<string, string> = {
+  critical: 'oklch(0.45 0.18 25)',
+  high: 'oklch(0.6 0.16 50)',
+  medium: 'oklch(0.75 0.14 80)',
+  low: 'oklch(0.55 0.12 150)',
+}
 
 function DQIssues({ runId }: { runId: string }) {
   const q = useQuery({ queryKey: ['dq-issues', runId], queryFn: () => getDQIssues(runId) })
@@ -234,6 +255,49 @@ function DQIssues({ runId }: { runId: string }) {
         <DQScoreCard runId={runId} />
         <MetricCard label="Issues open" value={`${issues.filter((i) => i.status === 'open').length}`} sub="awaiting resolution" />
         <MetricCard label="Waived" value={`${issues.filter((i) => i.status === 'waived').length}`} sub="with notes" />
+
+        {issues.length > 0 && (
+          <div className="card" style={{ padding: 16 }}>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Severity mix</div>
+            <ResponsiveContainer width="100%" height={160}>
+              <PieChart>
+                <Pie
+                  data={SEV_ORDER.map((s) => ({ name: s, value: issues.filter((i) => i.severity === s).length })).filter((d) => d.value > 0)}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={40}
+                  outerRadius={65}
+                  dataKey="value"
+                  paddingAngle={2}
+                >
+                  {SEV_ORDER.map((s) => (
+                    <Cell key={s} fill={SEV_COLORS[s]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {issues.length > 0 && (() => {
+          const checkCounts = Object.entries(
+            issues.reduce<Record<string, number>>((acc, i) => { acc[i.check_type] = (acc[i.check_type] ?? 0) + 1; return acc }, {})
+          ).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }))
+          return (
+            <div className="card" style={{ padding: 16 }}>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>By check type</div>
+              <ResponsiveContainer width="100%" height={Math.max(80, checkCounts.length * 28)}>
+                <BarChart layout="vertical" data={checkCounts} margin={{ left: 0, right: 24, top: 0, bottom: 0 }}>
+                  <XAxis type="number" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-soft)' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} />
+                  <Bar dataKey="value" fill="var(--brand)" radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
@@ -701,80 +765,52 @@ function BivariateAnalysis({ runId }: { runId: string }) {
 
         <div className="card" style={{ padding: 22 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>VIF scores</div>
-          <table className="hx">
-            <thead>
-              <tr>
-                <th>Column</th>
-                <th>VIF</th>
-                <th>Risk</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vifList.length === 0 ? (
-                <tr>
-                  <td colSpan={3} style={{ color: 'var(--ink-soft)', fontSize: 13, padding: 12 }}>
-                    No VIF scores reported.
-                  </td>
-                </tr>
-              ) : (
-                vifList.map((v) => (
-                  <tr key={v.column}>
-                    <td className="num">{v.column}</td>
-                    <td
-                      className="num"
-                      style={{ color: v.vif > 10 ? 'var(--crimson)' : v.vif > 5 ? 'var(--terra)' : 'var(--ink-2)' }}
-                    >
-                      {v.vif.toFixed(1)}
-                    </td>
-                    <td>
-                      <Pill kind={v.risk === 'high' ? 'err' : v.risk === 'medium' ? 'warn' : 'ok'} dot>
-                        {v.risk}
-                      </Pill>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          {vifList.length === 0 ? (
+            <div style={{ color: 'var(--ink-soft)', fontSize: 13 }}>No VIF scores reported.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={Math.max(80, vifList.length * 32)}>
+              <BarChart layout="vertical" data={vifList} margin={{ left: 0, right: 40, top: 0, bottom: 0 }}>
+                <XAxis type="number" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="column" width={100} tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-soft)' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} formatter={(v) => [Number(v).toFixed(1), 'VIF']} />
+                <ReferenceLine x={5} stroke="oklch(0.6 0.16 50)" strokeDasharray="4 2" label={{ value: '5', position: 'top', fontSize: 9, fill: 'oklch(0.6 0.16 50)' }} />
+                <ReferenceLine x={10} stroke="oklch(0.45 0.18 25)" strokeDasharray="4 2" label={{ value: '10', position: 'top', fontSize: 9, fill: 'oklch(0.45 0.18 25)' }} />
+                <Bar dataKey="vif" radius={[0, 3, 3, 0]}>
+                  {vifList.map((v) => (
+                    <Cell key={v.column} fill={v.vif > 10 ? 'oklch(0.45 0.18 25)' : v.vif > 5 ? 'oklch(0.6 0.16 50)' : 'oklch(0.55 0.12 150)'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
       {kwPairs.length > 0 && (
         <div className="card" style={{ padding: 22 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>Kruskal-Wallis (dimension × measure)</div>
-          <table className="hx" style={{ fontSize: 12 }}>
-            <thead>
-              <tr>
-                <th>Dimension</th>
-                <th>Measure</th>
-                <th>H-stat</th>
-                <th>p-value</th>
-                <th>Significant</th>
-              </tr>
-            </thead>
-            <tbody>
-              {kwPairs.slice(0, 15).map((p, i) => {
-                const hStat = p.value ?? p.stat ?? 0
-                const pVal = p.p_value
-                const sig = pVal != null && pVal < 0.05
-                return (
-                  <tr key={i}>
-                    <td className="num">{(p.dimension ?? p.col_a) ?? '—'}</td>
-                    <td className="num">{(p.measure ?? p.col_b) ?? '—'}</td>
-                    <td className="num" style={{ color: sig ? 'var(--crimson)' : 'var(--ink-2)' }}>
-                      {hStat.toFixed(2)}
-                    </td>
-                    <td className="num" style={{ color: 'var(--ink-soft)' }}>
-                      {pVal != null ? pVal.toFixed(3) : '—'}
-                    </td>
-                    <td style={{ color: sig ? 'var(--jade-deep)' : 'var(--ink-mute)' }}>
-                      {sig ? '✓' : '—'}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <ResponsiveContainer width="100%" height={Math.max(80, Math.min(kwPairs.length, 15) * 30)}>
+            <BarChart
+              layout="vertical"
+              data={kwPairs.slice(0, 15).map((p) => ({
+                label: `${(p.dimension ?? p.col_a) ?? '?'} × ${(p.measure ?? p.col_b) ?? '?'}`,
+                h: p.value ?? p.stat ?? 0,
+                sig: p.p_value != null && p.p_value < 0.05,
+                pval: p.p_value,
+              }))}
+              margin={{ left: 0, right: 60, top: 0, bottom: 0 }}
+            >
+              <XAxis type="number" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="label" width={160} tick={{ fontSize: 9, fontFamily: 'var(--font-mono)', fill: 'var(--ink-soft)' }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} formatter={(v, _n, item) => [Number(v).toFixed(2) + (item.payload?.pval != null ? ` (p=${Number(item.payload.pval).toFixed(3)})` : ''), 'H-stat']} />
+              <Bar dataKey="h" radius={[0, 3, 3, 0]}>
+                {kwPairs.slice(0, 15).map((p, i) => {
+                  const sig = p.p_value != null && p.p_value < 0.05
+                  return <Cell key={i} fill={sig ? 'oklch(0.45 0.18 25)' : 'oklch(0.55 0.08 230)'} />
+                })}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       )}
 
@@ -855,26 +891,29 @@ function WorkforceContext({ runId }: { runId: string }) {
 
       {/* Pay code concentration */}
       <div className="card" style={{ padding: 22 }}>
-        <div className="eyebrow" style={{ marginBottom: 16 }}>Pay code concentration</div>
+        <div className="eyebrow" style={{ marginBottom: 16 }}>Pay code concentration (Pareto)</div>
         {ctx.pay_code_concentration.length === 0 ? (
           <div style={{ color: 'var(--ink-soft)', fontSize: 13 }}>No pay code data available.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {ctx.pay_code_concentration.map((c) => {
-              const pct = c.pct_of_total_hours ?? 0
-              return (
-                <div key={c.pay_code} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 50px', gap: 10, alignItems: 'center' }}>
-                  <span className="num" style={{ fontSize: 12, color: 'var(--ink-2)' }}>{c.pay_code}</span>
-                  <div style={{ height: 8, background: 'var(--bg-soft)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.min(pct * 100, 100)}%`, height: '100%', background: 'var(--jade)' }} />
-                  </div>
-                  <span className="num" style={{ fontSize: 11, color: 'var(--ink-soft)', textAlign: 'right' }}>
-                    {(pct * 100).toFixed(1)}%
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart
+              data={ctx.pay_code_concentration.slice(0, 15).map((c) => ({
+                pay_code: c.pay_code,
+                pct: (c.pct_of_total_hours ?? 0) * 100,
+                cumulative: (c.cumulative_pct_hours ?? 0) * 100,
+              }))}
+              margin={{ left: 0, right: 48, top: 8, bottom: 50 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" />
+              <XAxis dataKey="pay_code" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} angle={-45} textAnchor="end" axisLine={false} tickLine={false} interval={0} />
+              <YAxis yAxisId="left" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+              <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+              <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} formatter={(v, name) => [`${Number(v).toFixed(1)}%`, name === 'pct' ? '% of hours' : 'cumulative %']} />
+              <ReferenceLine yAxisId="right" y={80} stroke="oklch(0.6 0.16 50)" strokeDasharray="4 2" />
+              <Bar yAxisId="left" dataKey="pct" fill="var(--jade)" radius={[3, 3, 0, 0]} />
+              <Line yAxisId="right" type="monotone" dataKey="cumulative" stroke="oklch(0.6 0.16 50)" dot={false} strokeWidth={2} />
+            </ComposedChart>
+          </ResponsiveContainer>
         )}
       </div>
 
@@ -884,34 +923,24 @@ function WorkforceContext({ runId }: { runId: string }) {
           <div className="eyebrow" style={{ marginBottom: 16 }}>
             Temporal trends · {ctx.time_grain ?? ''} · last {recentPeriods.length} periods
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="hx" style={{ fontSize: 12 }}>
-              <thead>
-                <tr>
-                  <th>Period</th>
-                  <th>Total hours</th>
-                  <th>Employees</th>
-                  <th>PoP hours Δ%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentPeriods.map((p, i) => {
-                  const pop = p.period_over_period_hours_pct
-                  const popColor = pop == null ? 'var(--ink-mute)' : pop >= 0 ? 'var(--jade-deep)' : 'var(--crimson)'
-                  return (
-                    <tr key={i}>
-                      <td className="num" style={{ color: 'var(--ink)' }}>{p.period}</td>
-                      <td className="num">{p.total_hours != null ? p.total_hours.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</td>
-                      <td className="num">{p.employee_count != null ? p.employee_count.toLocaleString() : '—'}</td>
-                      <td className="num" style={{ color: popColor }}>
-                        {pop != null ? `${pop >= 0 ? '+' : ''}${(pop * 100).toFixed(1)}%` : '—'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart
+              data={recentPeriods.map((p) => ({
+                period: p.period,
+                total_hours: p.total_hours ?? 0,
+                employee_count: p.employee_count ?? 0,
+              }))}
+              margin={{ left: 0, right: 48, top: 8, bottom: 40 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" />
+              <XAxis dataKey="period" tick={{ fontSize: 9, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} angle={-45} textAnchor="end" axisLine={false} tickLine={false} />
+              <YAxis yAxisId="left" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} tickFormatter={(v) => Number(v) >= 1000 ? `${(Number(v) / 1000).toFixed(0)}K` : String(v)} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} />
+              <Bar yAxisId="right" dataKey="employee_count" fill="oklch(0.7 0.1 240)" radius={[3, 3, 0, 0]} name="Employees" />
+              <Line yAxisId="left" type="monotone" dataKey="total_hours" stroke="var(--brand)" dot={false} strokeWidth={2} name="Total hours" />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
       )}
 
@@ -919,23 +948,32 @@ function WorkforceContext({ runId }: { runId: string }) {
       {Object.keys(hourDist).length > 0 && (
         <div className="card" style={{ padding: 22 }}>
           <div className="eyebrow" style={{ marginBottom: 16 }}>Hour distribution</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {Object.entries(hourDist).map(([category, pct]) => {
-              const pctNum = typeof pct === 'number' ? pct : 0
-              const barWidth = pctNum <= 1 ? pctNum * 100 : pctNum
-              return (
-                <div key={category} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 54px', gap: 10, alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, color: 'var(--ink-2)', textTransform: 'capitalize' }}>{category}</span>
-                  <div style={{ height: 8, background: 'var(--bg-soft)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.min(barWidth, 100)}%`, height: '100%', background: 'var(--jade)' }} />
-                  </div>
-                  <span className="num" style={{ fontSize: 12, color: 'var(--ink-soft)', textAlign: 'right' }}>
-                    {barWidth.toFixed(1)}%
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={Object.entries(hourDist).map(([name, value]) => {
+                  const v = typeof value === 'number' ? value : 0
+                  return { name, value: v <= 1 ? v * 100 : v }
+                })}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                dataKey="value"
+                paddingAngle={2}
+              >
+                {Object.entries(hourDist).map(([name]) => {
+                  const lc = name.toLowerCase()
+                  const fill = lc.includes('regular') ? 'oklch(0.55 0.12 150)'
+                    : lc.includes('over') ? 'oklch(0.6 0.16 50)'
+                    : lc.includes('premium') ? 'oklch(0.45 0.18 25)'
+                    : 'oklch(0.6 0.08 230)'
+                  return <Cell key={name} fill={fill} />
+                })}
+              </Pie>
+              <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} formatter={(v) => [`${Number(v).toFixed(1)}%`, '']} />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       )}
 
@@ -945,29 +983,25 @@ function WorkforceContext({ runId }: { runId: string }) {
         {sortedSegments.length === 0 ? (
           <div style={{ color: 'var(--ink-soft)', fontSize: 13 }}>No segment health data available.</div>
         ) : (
-          <table className="hx">
-            <thead>
-              <tr>
-                <th>Segment</th>
-                <th>Employees</th>
-                <th>DQ score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedSegments.map((s, i) => (
-                <tr key={i}>
-                  <td style={{ color: 'var(--ink)' }}>{s.segment_column} = {s.segment_value}</td>
-                  <td className="num">{s.employee_count.toLocaleString()}</td>
-                  <td
-                    className="num"
-                    style={{ color: s.dq_score < 0.7 ? 'var(--crimson)' : s.dq_score < 0.9 ? 'var(--terra)' : 'var(--jade-deep)' }}
-                  >
-                    {s.dq_score.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ResponsiveContainer width="100%" height={Math.max(80, sortedSegments.length * 32)}>
+            <BarChart
+              layout="vertical"
+              data={sortedSegments.map((s) => ({
+                label: `${s.segment_column} = ${s.segment_value}`,
+                score: s.dq_score,
+              }))}
+              margin={{ left: 0, right: 24, top: 0, bottom: 0 }}
+            >
+              <XAxis type="number" domain={[0, 1]} tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-mute)' }} axisLine={false} tickLine={false} tickFormatter={(v) => Number(v).toFixed(1)} />
+              <YAxis type="category" dataKey="label" width={160} tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--ink-soft)' }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ fontSize: 12, fontFamily: 'var(--font-mono)' }} formatter={(v) => [Number(v).toFixed(2), 'DQ score']} />
+              <Bar dataKey="score" radius={[0, 3, 3, 0]}>
+                {sortedSegments.map((s, i) => (
+                  <Cell key={i} fill={s.dq_score >= 0.9 ? 'oklch(0.55 0.12 150)' : s.dq_score >= 0.7 ? 'oklch(0.6 0.16 50)' : 'oklch(0.45 0.18 25)'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         )}
       </div>
     </div>
